@@ -20,7 +20,6 @@ import android.telephony.SmsCbCmasInfo;
 import android.telephony.SmsCbEtwsInfo;
 
 import com.android.internal.telephony.SmsConstants;
-import com.android.internal.telephony.gsm.SmsCbConstants;
 
 import dalvik.annotation.compat.UnsupportedAppUsage;
 
