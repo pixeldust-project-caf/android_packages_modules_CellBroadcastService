@@ -1,0 +1,24 @@
+// Copyright 2019 The Android Open Source Project
+
+android_app {
+    name: "CellBroadcastServiceModule",
+    srcs: [
+      "src/**/*.java",
+      ":framework-cellbroadcast-shared-srcs",
+    ],
+    libs: ["telephony-common"],
+    platform_apis: true,
+    certificate: "platform",
+    privileged: true,
+    resource_dirs: ["res"],
+    optimize: {
+        proguard_flags_files: ["proguard.flags"],
+    },
+}
+
+filegroup {
+    name: "cellbroadcast-constants-shared-srcs",
+    srcs: [
+        "src/com/android/cellbroadcastservice/SmsCbConstants.java",
+    ],
+}
