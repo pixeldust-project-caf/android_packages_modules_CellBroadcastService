@@ -159,7 +159,9 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         requestLocationUpdate(location -> {
             if (location == null) {
                 // If the location is not available, broadcast the messages directly.
-                broadcastMessage(cbMessages, cbMessageUris, slotIndex);
+                for (int i = 0; i < cbMessages.size(); i++) {
+                    broadcastMessage(cbMessages.get(i), cbMessageUris.get(i), slotIndex);
+                }
             } else {
                 for (int i = 0; i < cbMessages.size(); i++) {
                     List<Geometry> broadcastArea = !commonBroadcastArea.isEmpty()

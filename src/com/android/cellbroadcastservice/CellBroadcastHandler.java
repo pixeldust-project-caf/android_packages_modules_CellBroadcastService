@@ -195,18 +195,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     /**
-     * Broadcast a list of cell broadcast messages.
-     * @param cbMessages a list of cell broadcast message.
-     * @param cbMessageUris the corresponding {@link Uri} of the cell broadcast messages.
-     */
-    protected void broadcastMessage(List<SmsCbMessage> cbMessages, List<Uri> cbMessageUris,
-            int slotIndex) {
-        for (int i = 0; i < cbMessages.size(); i++) {
-            broadcastMessage(cbMessages.get(i), cbMessageUris.get(i), slotIndex);
-        }
-    }
-
-    /**
      * Broadcast the {@code message} to the applications.
      * @param message a message need to broadcast
      * @param messageUri message's uri
