@@ -16,6 +16,8 @@
 
 package com.android.cellbroadcastservice;
 
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static android.content.PermissionChecker.PERMISSION_GRANTED;
 import static android.provider.Settings.Secure.CMAS_ADDITIONAL_BROADCAST_PKG;
 
@@ -29,13 +31,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.PermissionChecker;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
+import android.location.LocationRequest;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
-import android.os.Looper;
+import android.os.HandlerExecutor;
 import android.os.Message;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -43,7 +44,6 @@ import android.provider.Telephony;
 import android.provider.Telephony.CellBroadcasts;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
-import android.text.format.DateUtils;
 import android.util.LocalLog;
 import android.util.Log;
 
@@ -56,6 +56,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Dispatch new Cell Broadcasts to receivers. Acquires a private wakelock until the broadcast
@@ -69,7 +70,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     protected static final Uri CELL_BROADCAST_URI = Uri.parse("content://cellbroadcasts_fwk");
 
     /** Uses to request the location update. */
-    public final LocationRequester mLocationRequester;
+    private final LocationRequester mLocationRequester;
 
     private CellBroadcastHandler(Context context) {
         this("CellBroadcastHandler", context);
@@ -80,7 +81,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         mLocationRequester = new LocationRequester(
                 context,
                 (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE),
-                getHandler().getLooper());
+                getHandler());
     }
 
     /**
@@ -289,21 +290,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         private static final String TAG = LocationRequester.class.getSimpleName();
 
         /**
-         * Use as the default maximum wait time if the cell broadcast doesn't specify the value.
-         * Most of the location request should be responded within 20 seconds.
-         */
-        private static final int DEFAULT_MAXIMUM_WAIT_TIME_SEC = 20;
-
-        /**
-         * Trigger this event when the {@link LocationManager} is not responded within the given
-         * time.
-         */
-        private static final int EVENT_LOCATION_REQUEST_TIMEOUT = 1;
-
-        /** Request a single location update. */
-        private static final int EVENT_REQUEST_LOCATION_UPDATE = 2;
-
-        /**
          * Request location update from network or gps location provider. Network provider will be
          * used if available, otherwise use the gps provider.
          */
@@ -311,17 +297,18 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER);
 
         private final LocationManager mLocationManager;
-        private final Looper mLooper;
         private final List<LocationUpdateCallback> mCallbacks;
         private final Context mContext;
-        private Handler mLocationHandler;
+        private final Handler mLocationHandler;
 
-        LocationRequester(Context context, LocationManager locationManager, Looper looper) {
+        private boolean mLocationUpdateInProgress;
+
+        LocationRequester(Context context, LocationManager locationManager, Handler handler) {
             mLocationManager = locationManager;
-            mLooper = looper;
             mCallbacks = new ArrayList<>();
             mContext = context;
-            mLocationHandler = new LocationHandler(looper);
+            mLocationHandler = handler;
+            mLocationUpdateInProgress = false;
         }
 
         /**
@@ -329,103 +316,71 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
          * {@code null} location will be called immediately.
          *
          * @param callback a callback to the response when the location is available
-         * @param maximumWaitTimeSec the maximum wait time of this request. If location is not
+         * @param maximumWaitTimeS the maximum wait time of this request. If location is not
          * updated within the maximum wait time, {@code callback#onLocationUpadte(null)} will be
          * called.
          */
         void requestLocationUpdate(@NonNull LocationUpdateCallback callback,
-                int maximumWaitTimeSec) {
-            mLocationHandler.obtainMessage(EVENT_REQUEST_LOCATION_UPDATE, maximumWaitTimeSec,
-                    0 /* arg2 */, callback).sendToTarget();
+                int maximumWaitTimeS) {
+            mLocationHandler.post(() -> requestLocationUpdateInternal(callback, maximumWaitTimeS));
         }
 
-        private void onLocationUpdate(@Nullable LatLng location) {
+        private void onLocationUpdate(@Nullable Location location) {
+            if (DBG) {
+                Log.d(TAG, "no location available");
+            }
+
+            mLocationUpdateInProgress = false;
             for (LocationUpdateCallback callback : mCallbacks) {
-                callback.onLocationUpdate(location);
+                if (location != null) {
+                    callback.onLocationUpdate(
+                            new LatLng(location.getLatitude(), location.getLongitude()));
+                } else {
+                    callback.onLocationUpdate(null);
+                }
             }
             mCallbacks.clear();
         }
 
         private void requestLocationUpdateInternal(@NonNull LocationUpdateCallback callback,
-                int maximumWaitTimeSec) {
+                int maximumWaitTimeS) {
             if (DBG) Log.d(TAG, "requestLocationUpdate");
-            if (!isLocationServiceAvailable()) {
+            if (!hasPermission(ACCESS_FINE_LOCATION) && !hasPermission(ACCESS_COARSE_LOCATION)) {
                 if (DBG) {
                     Log.d(TAG, "Can't request location update because of no location permission");
                 }
                 callback.onLocationUpdate(null);
                 return;
             }
-
-            if (!mLocationHandler.hasMessages(EVENT_LOCATION_REQUEST_TIMEOUT)) {
-                if (maximumWaitTimeSec == SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
-                    maximumWaitTimeSec = DEFAULT_MAXIMUM_WAIT_TIME_SEC;
-                }
-                mLocationHandler.sendMessageDelayed(
-                        mLocationHandler.obtainMessage(EVENT_LOCATION_REQUEST_TIMEOUT),
-                        maximumWaitTimeSec * DateUtils.SECOND_IN_MILLIS);
-            }
-
-            mCallbacks.add(callback);
-
-            for (String provider : LOCATION_PROVIDERS) {
-                if (mLocationManager.isProviderEnabled(provider)) {
-                    mLocationManager.requestSingleUpdate(provider, mLocationListener, mLooper);
+            if (!mLocationUpdateInProgress) {
+                for (String provider : LOCATION_PROVIDERS) {
+                    if (!mLocationManager.isProviderEnabled(provider)) {
+                        if (DBG) {
+                            Log.d(TAG, "provider " + provider + " not available");
+                        }
+                        continue;
+                    }
+                    LocationRequest request = LocationRequest.createFromDeprecatedProvider(provider,
+                            0, 0, true);
+                    if (maximumWaitTimeS != SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
+                        request.setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+                    }
+                    mLocationManager.getCurrentLocation(request, null,
+                            new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
+                    mLocationUpdateInProgress = true;
                     break;
                 }
             }
-        }
-
-        private boolean isLocationServiceAvailable() {
-            if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                    && !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) return false;
-            for (String provider : LOCATION_PROVIDERS) {
-                if (mLocationManager.isProviderEnabled(provider)) return true;
+            if (mLocationUpdateInProgress) {
+                mCallbacks.add(callback);
+            } else {
+                callback.onLocationUpdate(null);
             }
-            return false;
         }
 
         private boolean hasPermission(String permission) {
             return PermissionChecker.checkCallingOrSelfPermissionForDataDelivery(mContext,
                     permission, null) == PERMISSION_GRANTED;
-        }
-
-        private final LocationListener mLocationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                mLocationHandler.removeMessages(EVENT_LOCATION_REQUEST_TIMEOUT);
-                onLocationUpdate(new LatLng(location.getLatitude(), location.getLongitude()));
-            }
-
-            @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {}
-
-            @Override
-            public void onProviderEnabled(String provider) {}
-
-            @Override
-            public void onProviderDisabled(String provider) {}
-        };
-
-        private final class LocationHandler extends Handler {
-            LocationHandler(Looper looper) {
-                super(looper);
-            }
-
-            @Override
-            public void handleMessage(Message msg) {
-                switch (msg.what) {
-                    case EVENT_LOCATION_REQUEST_TIMEOUT:
-                        if (DBG) Log.d(TAG, "location request timeout");
-                        onLocationUpdate(null);
-                        break;
-                    case EVENT_REQUEST_LOCATION_UPDATE:
-                        requestLocationUpdateInternal((LocationUpdateCallback) msg.obj, msg.arg1);
-                        break;
-                    default:
-                        Log.e(TAG, "Unsupported message type " + msg.what);
-                }
-            }
         }
     }
 }
