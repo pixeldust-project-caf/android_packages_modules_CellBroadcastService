@@ -67,8 +67,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
     private final LocalLog mLocalLog = new LocalLog(100);
 
-    protected static final Uri CELL_BROADCAST_URI = Uri.parse("content://cellbroadcasts_fwk");
-
     /** Uses to request the location update. */
     private final LocationRequester mLocationRequester;
 
@@ -129,7 +127,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         // TODO: Database inserting can be time consuming, therefore this should be changed to
         // asynchronous.
         ContentValues cv = message.getContentValues();
-        Uri uri = mContext.getContentResolver().insert(CELL_BROADCAST_URI, cv);
+        Uri uri = mContext.getContentResolver().insert(CellBroadcasts.CONTENT_URI, cv);
 
         if (message.needGeoFencingCheck()) {
             if (DBG) {
@@ -264,7 +262,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         if (messageUri != null) {
             ContentValues cv = new ContentValues();
             cv.put(CellBroadcasts.MESSAGE_BROADCASTED, 1);
-            mContext.getContentResolver().update(CELL_BROADCAST_URI, cv,
+            mContext.getContentResolver().update(CellBroadcasts.CONTENT_URI, cv,
                     CellBroadcasts._ID + "=?", new String[] {messageUri.getLastPathSegment()});
         }
     }

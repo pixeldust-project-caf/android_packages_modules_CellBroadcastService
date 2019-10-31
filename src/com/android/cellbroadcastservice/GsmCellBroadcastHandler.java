@@ -110,7 +110,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
 
         ContentResolver resolver = mContext.getContentResolver();
         for (CellBroadcastIdentity identity : geoFencingTriggerMessage.cbIdentifiers) {
-            try (Cursor cursor = resolver.query(CELL_BROADCAST_URI,
+            try (Cursor cursor = resolver.query(CellBroadcasts.CONTENT_URI,
                     CellBroadcasts.QUERY_COLUMNS_FWK,
                     where,
                     new String[] { Integer.toString(identity.messageIdentifier),
@@ -120,7 +120,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                 if (cursor != null) {
                     while (cursor.moveToNext()) {
                         cbMessages.add(SmsCbMessage.createFromCursor(cursor));
-                        cbMessageUris.add(ContentUris.withAppendedId(CELL_BROADCAST_URI,
+                        cbMessageUris.add(ContentUris.withAppendedId(CellBroadcasts.CONTENT_URI,
                                 cursor.getInt(cursor.getColumnIndex(CellBroadcasts._ID))));
                     }
                 }
