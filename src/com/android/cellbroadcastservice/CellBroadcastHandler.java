@@ -18,7 +18,6 @@ package com.android.cellbroadcastservice;
 
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
-import static android.content.PermissionChecker.PERMISSION_GRANTED;
 import static android.provider.Settings.Secure.CMAS_ADDITIONAL_BROADCAST_PKG;
 
 import android.Manifest;
@@ -29,7 +28,7 @@ import android.app.AppOpsManager;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.content.PermissionChecker;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationRequest;
@@ -38,6 +37,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.Message;
+import android.os.Process;
 import android.os.UserHandle;
 import android.provider.Settings;
 import android.provider.Telephony;
@@ -377,8 +377,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         }
 
         private boolean hasPermission(String permission) {
-            return PermissionChecker.checkCallingOrSelfPermissionForDataDelivery(mContext,
-                    permission, null) == PERMISSION_GRANTED;
+            return mContext.checkPermission(permission, Process.myPid(), Process.myUid())
+                    == PackageManager.PERMISSION_GRANTED;
         }
     }
 }
