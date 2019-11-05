@@ -38,12 +38,16 @@
             android:process="com.android.phone">
 
         <service android:name="DefaultCellBroadcastService"
-                android:process="com.android.phone"
                 android:exported="true"
                 android:permission="android.permission.BIND_CELL_BROADCAST_SERVICE">
             <intent-filter>
                 <action android:name="android.telephony.CellBroadcastService" />
             </intent-filter>
         </service>
+        <provider android:name="CellBroadcastProvider"
+                android:authorities="cellbroadcasts"
+                android:exported="true"
+                android:singleUser="true"
+                android:multiprocess="false" />
     </application>
 </manifest>
