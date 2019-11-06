@@ -202,6 +202,9 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             } else {
                 SmsCbMessage cbMessage = handleGsmBroadcastSms(header, pdu, slotIndex);
                 if (cbMessage != null) {
+                    if (isDuplicate(cbMessage)) {
+                        return false;
+                    }
                     handleBroadcastSms(cbMessage);
                     return true;
                 }

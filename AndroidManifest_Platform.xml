@@ -17,10 +17,8 @@
  */
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-        android:sharedUserId="android.uid.networkstack"
-        android:versionCode="300000000"
-        android:versionName="R-initial"
-        package="com.android.cellbroadcastservice">
+    android:sharedUserId="android.uid.phone"
+    package="com.android.cellbroadcastservice">
 
     <original-package android:name="com.android.cellbroadcastservice" />
 
@@ -36,23 +34,18 @@
     <uses-sdk android:minSdkVersion="29"/>
 
     <application android:label="Module used to handle cell broadcasts."
-            android:defaultToDeviceProtectedStorage="true"
-            android:directBootAware="true"
-            android:persistent="true"
-            android:process="com.android.networkstack.process">
+        android:defaultToDeviceProtectedStorage="true"
+        android:persistent="true"
+        android:directBootAware="true"
+        android:process="com.android.phone">
 
         <service android:name="DefaultCellBroadcastService"
-                android:process="com.android.networkstack.process"
-                android:exported="true"
-                android:permission="android.permission.BIND_CELL_BROADCAST_SERVICE">
+            android:process="com.android.phone"
+            android:exported="true"
+            android:permission="android.permission.BIND_CELL_BROADCAST_SERVICE">
             <intent-filter>
                 <action android:name="android.telephony.CellBroadcastService" />
             </intent-filter>
         </service>
-        <provider android:name="CellBroadcastProvider"
-                android:authorities="cellbroadcasts"
-                android:exported="true"
-                android:singleUser="true"
-                android:multiprocess="false" />
     </application>
 </manifest>

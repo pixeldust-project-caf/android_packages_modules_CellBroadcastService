@@ -15,21 +15,6 @@
 -->
 
 <resources>
-    <!-- If this value is true, SMS encoded as octet is decoded by utf8 decoder.
-      If false, decoded by Latin decoder. -->
-    <bool name="config_sms_utf8_support">false</bool>
-
-    <!-- Package names of the default cell broadcast receivers -->
-    <string-array name="config_defaultCellBroadcastReceiverPkgs" translatable="false">
-        <item>com.android.cellbroadcastreceiver</item>
-    </string-array>
-
     <!-- The message expiration time in milliseconds for duplicate detection -->
-    <integer name="message_expiration_time">86400000</integer>
-
-    <!-- Whether to compare message body when deduping messages -->
-    <bool name="duplicate_compare_body">false</bool>
-
-    <!-- Whether to reset alert message duplicate detection after toggling airplane mode -->
-    <bool name="reset_duplicate_detection_on_airplane_mode">false</bool>
+    <integer name="message_expiration_time">600000</integer>
 </resources>

@@ -1,0 +1,156 @@
+/*
+ * Copyright (C) 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.cellbroadcastservice;
+
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doReturn;
+
+import android.content.ContentValues;
+import android.content.res.Resources;
+import android.database.Cursor;
+import android.database.MatrixCursor;
+import android.net.Uri;
+import android.provider.Telephony;
+import android.telephony.SmsCbCmasInfo;
+import android.telephony.SmsCbLocation;
+import android.telephony.SmsCbMessage;
+import android.test.mock.MockContentProvider;
+import android.test.mock.MockContentResolver;
+import android.test.suitebuilder.annotation.SmallTest;
+import android.testing.AndroidTestingRunner;
+import android.testing.TestableLooper;
+import android.text.format.DateUtils;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+
+import java.util.Map;
+
+@RunWith(AndroidTestingRunner.class)
+@TestableLooper.RunWithLooper
+public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
+
+    private CellBroadcastHandler mCellBroadcastHandler;
+
+    @Mock
+    private Map<Integer, Resources> mMockedResourcesCache;
+
+    private class CellBroadcastContentProvider extends MockContentProvider {
+        @Override
+        public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
+                            String sortOrder) {
+
+            if (uri.compareTo(Telephony.CellBroadcasts.CONTENT_URI) == 0) {
+                MatrixCursor mc = new MatrixCursor(Telephony.CellBroadcasts.QUERY_COLUMNS_FWK);
+
+                mc.addRow(new Object[]{
+                        1,              // _ID
+                        0,              // SLOT_INDEX
+                        0,              // GEOGRAPHICAL_SCOPE
+                        "311480",       // PLMN
+                        0,              // LAC
+                        0,              // CID
+                        1234,           // SERIAL_NUMBER
+                        SmsCbConstants.MESSAGE_ID_CMAS_ALERT_PRESIDENTIAL_LEVEL,
+                        "en",           // LANGUAGE_CODE
+                        "Test Message", // MESSAGE_BODY
+                        1,              // MESSAGE_FORMAT
+                        3,              // MESSAGE_PRIORITY
+                        0,              // ETWS_WARNING_TYPE
+                        SmsCbCmasInfo.CMAS_CLASS_PRESIDENTIAL_LEVEL_ALERT, // CMAS_MESSAGE_CLASS
+                        0,              // CMAS_CATEGORY
+                        0,              // CMAS_RESPONSE_TYPE
+                        0,              // CMAS_SEVERITY
+                        0,              // CMAS_URGENCY
+                        0,              // CMAS_CERTAINTY
+                        System.currentTimeMillis() - DateUtils.HOUR_IN_MILLIS * 2,
+                        true,           // MESSAGE_BROADCASTED
+                        "",             // GEOMETRIES
+                        5,              // MAXIMUM_WAIT_TIME
+                });
+
+                return mc;
+            }
+
+            return null;
+        }
+
+        @Override
+        public int update(Uri url, ContentValues values, String where, String[] whereArgs) {
+            return 1;
+        }
+    }
+
+    @Before
+    public void setUp() throws Exception {
+        super.setUp();
+        mCellBroadcastHandler = new CellBroadcastHandler("CellBroadcastHandlerUT", mMockedContext);
+        ((MockContentResolver) mMockedContext.getContentResolver()).addProvider(
+                Telephony.CellBroadcasts.CONTENT_URI.getAuthority(),
+                new CellBroadcastContentProvider());
+        doReturn(true).when(mMockedResourcesCache).containsKey(anyInt());
+        doReturn(mMockedResources).when(mMockedResourcesCache).get(anyInt());
+        replaceInstance(CellBroadcastHandler.class, "mResourcesCache", mCellBroadcastHandler,
+                mMockedResourcesCache);
+        putResources(R.integer.message_expiration_time, (int) DateUtils.DAY_IN_MILLIS);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        super.tearDown();
+    }
+
+    private SmsCbMessage createSmsCbMessage(int serialNumber, int serviceCategory,
+                                            String messageBody) {
+        return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
+                0, serialNumber, new SmsCbLocation(),
+                serviceCategory, "en", messageBody, 3,
+                null, null, 0);
+    }
+
+    @Test
+    @SmallTest
+    public void testDuplicate() throws Exception {
+        SmsCbMessage msg = createSmsCbMessage(1234, 4370, "msg");
+        assertTrue(mCellBroadcastHandler.isDuplicate(msg));
+    }
+
+    @Test
+    @SmallTest
+    public void testNotDuplicateSerialDifferent() throws Exception {
+        SmsCbMessage msg = createSmsCbMessage(1235, 4370, "msg");
+        assertFalse(mCellBroadcastHandler.isDuplicate(msg));
+    }
+
+    @Test
+    @SmallTest
+    public void testNotDuplicateServiceCategoryDifferent() throws Exception {
+        SmsCbMessage msg = createSmsCbMessage(1234, 4371, "msg");
+        assertFalse(mCellBroadcastHandler.isDuplicate(msg));
+    }
+
+    @Test
+    @SmallTest
+    public void testNotDuplicateMessageBodyDifferent() throws Exception {
+        putResources(R.bool.duplicate_compare_body, true);
+        SmsCbMessage msg = createSmsCbMessage(1234, 4370, "msg");
+        assertFalse(mCellBroadcastHandler.isDuplicate(msg));
+    }
+}
