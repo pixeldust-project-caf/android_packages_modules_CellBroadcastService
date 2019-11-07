@@ -47,6 +47,8 @@ import android.os.UserHandle;
 import android.provider.Settings;
 import android.provider.Telephony;
 import android.provider.Telephony.CellBroadcasts;
+import android.telephony.CbGeoUtils.Geometry;
+import android.telephony.CbGeoUtils.LatLng;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.cdma.CdmaSmsCbProgramData;
@@ -55,8 +57,6 @@ import android.util.LocalLog;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.CbGeoUtils.Geometry;
-import com.android.internal.telephony.CbGeoUtils.LatLng;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 
 import java.io.FileDescriptor;
@@ -275,7 +275,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 } else {
                     performGeoFencing(message, uri, message.getGeometries(), location, slotIndex);
                 }
-            }, message.getMaximumWaitingTime());
+            }, message.getMaximumWaitingDuration());
         } else {
             if (DBG) {
                 log("Broadcast the message directly because no geo-fencing required, "
@@ -436,6 +436,24 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     /**
+     * Get the subscription ID for a phone ID, or INVALID_SUBSCRIPTION_ID if the phone does not
+     * have an active sub
+     * @param phoneId the phoneId to use
+     * @return the associated sub id
+     */
+    protected int getSubIdForPhone(int phoneId) {
+        SubscriptionManager subMan =
+                (SubscriptionManager) mContext.getSystemService(
+                        Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        int[] subIds = subMan.getSubscriptionIds(phoneId);
+        if (subIds != null) {
+            return subIds[0];
+        } else {
+            return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        }
+    }
+
+    /**
      * Broadcast the {@code message} to the applications.
      * @param message a message need to broadcast
      * @param messageUri message's uri
@@ -457,9 +475,15 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             appOp = AppOpsManager.OP_RECEIVE_EMERGECY_SMS;
 
             intent.putExtra(EXTRA_MESSAGE, message);
-            SubscriptionManager.putPhoneIdAndSubIdExtra(intent, slotIndex);
+            int subId = getSubIdForPhone(slotIndex);
+            if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                intent.putExtra("subscription", subId);
+                intent.putExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX, subId);
+            }
+            intent.putExtra("phone", slotIndex);
+            intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, slotIndex);
 
-            if (Build.IS_DEBUGGABLE) {
+            if (IS_DEBUGGABLE) {
                 // Send additional broadcast intent to the specified package. This is only for sl4a
                 // automation tests.
                 final String additionalPackage = Settings.Secure.getString(
@@ -480,7 +504,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 // Explicitly send the intent to all the configured cell broadcast receivers.
                 intent.setPackage(pkg);
                 mContext.sendOrderedBroadcastAsUser(intent, UserHandle.ALL, receiverPermission,
-                        appOp, mReceiver, getHandler(), Activity.RESULT_OK, null, null);
+                        appOp, null, mReceiver, getHandler(), Activity.RESULT_OK, null, null);
             }
         } else {
             msg = "Dispatching SMS CB, SmsCbMessage is: " + message;
@@ -497,8 +521,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             SubscriptionManager.putPhoneIdAndSubIdExtra(intent, slotIndex);
 
             mReceiverCount.incrementAndGet();
-            mContext.sendOrderedBroadcastAsUser(intent, UserHandle.ALL, receiverPermission, appOp,
-                    mReceiver, getHandler(), Activity.RESULT_OK, null, null);
+            mContext.sendOrderedBroadcastAsUser(intent, UserHandle.ALL, receiverPermission,
+                    appOp, null, mReceiver, getHandler(), Activity.RESULT_OK, null, null);
         }
 
         if (messageUri != null) {

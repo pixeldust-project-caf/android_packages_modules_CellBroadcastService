@@ -20,9 +20,9 @@ import android.annotation.UnsupportedAppUsage;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Message;
 import android.os.PowerManager;
+import android.os.SystemProperties;
 import android.util.Log;
 
 import com.android.internal.util.State;
@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * {@link #quit}.
  */
 public abstract class WakeLockStateMachine extends StateMachine {
-    protected static final boolean DBG = Build.IS_DEBUGGABLE;
+    protected static final boolean DBG = SystemProperties.getInt("ro.debuggable", 0) == 1;
 
     private final PowerManager.WakeLock mWakeLock;
 
@@ -123,7 +123,7 @@ public abstract class WakeLockStateMachine extends StateMachine {
             switch (msg.what) {
                 default: {
                     String errorText = "processMessage: unhandled message type " + msg.what;
-                    if (Build.IS_DEBUGGABLE) {
+                    if (DBG) {
                         throw new RuntimeException(errorText);
                     } else {
                         loge(errorText);
