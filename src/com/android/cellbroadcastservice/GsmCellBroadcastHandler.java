@@ -110,7 +110,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
 
         ContentResolver resolver = mContext.getContentResolver();
         for (CellBroadcastIdentity identity : geoFencingTriggerMessage.cbIdentifiers) {
-            try (Cursor cursor = resolver.query(CELL_BROADCAST_URI,
+            try (Cursor cursor = resolver.query(CellBroadcasts.CONTENT_URI,
                     CellBroadcasts.QUERY_COLUMNS_FWK,
                     where,
                     new String[] { Integer.toString(identity.messageIdentifier),
@@ -120,7 +120,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                 if (cursor != null) {
                     while (cursor.moveToNext()) {
                         cbMessages.add(SmsCbMessage.createFromCursor(cursor));
-                        cbMessageUris.add(ContentUris.withAppendedId(CELL_BROADCAST_URI,
+                        cbMessageUris.add(ContentUris.withAppendedId(CellBroadcasts.CONTENT_URI,
                                 cursor.getInt(cursor.getColumnIndex(CellBroadcasts._ID))));
                     }
                 }
@@ -159,7 +159,9 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         requestLocationUpdate(location -> {
             if (location == null) {
                 // If the location is not available, broadcast the messages directly.
-                broadcastMessage(cbMessages, cbMessageUris, slotIndex);
+                for (int i = 0; i < cbMessages.size(); i++) {
+                    broadcastMessage(cbMessages.get(i), cbMessageUris.get(i), slotIndex);
+                }
             } else {
                 for (int i = 0; i < cbMessages.size(); i++) {
                     List<Geometry> broadcastArea = !commonBroadcastArea.isEmpty()
