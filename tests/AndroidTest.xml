@@ -20,7 +20,7 @@
 
     <option name="test-suite-tag" value="apct" />
     <option name="test-tag" value="CellBroadcastServiceTests" />
-    <test class="com.android.tradefed.testtype.InstrumentationTest" >
+    <test class="com.android.tradefed.testtype.AndroidJUnitTest" >
         <option name="package" value="com.android.cellbroadcastservice.tests" />
         <option name="runner" value="androidx.test.runner.AndroidJUnitRunner" />
         <option name="hidden-api-checks" value="false"/>

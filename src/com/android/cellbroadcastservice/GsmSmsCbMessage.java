@@ -103,7 +103,7 @@ public class GsmSmsCbMessage {
                     header.getSerialNumber(), location, header.getServiceCategory(), null,
                     getEtwsPrimaryMessage(context, header.getEtwsInfo().getWarningType()),
                     SmsCbMessage.MESSAGE_PRIORITY_EMERGENCY, header.getEtwsInfo(),
-                    header.getCmasInfo(), 0, null /* geometries */, receivedTimeMillis, slotIndex);
+                    header.getCmasInfo(), slotIndex);
         } else if (header.isUmtsFormat()) {
             // UMTS format has only 1 PDU
             byte[] pdu = pdus[0];
@@ -152,8 +152,7 @@ public class GsmSmsCbMessage {
             return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
                     header.getGeographicalScope(), header.getSerialNumber(), location,
                     header.getServiceCategory(), language, sb.toString(), priority,
-                    header.getEtwsInfo(), header.getCmasInfo(), 0, null /* geometries */,
-                    receivedTimeMillis, slotIndex);
+                    header.getEtwsInfo(), header.getCmasInfo(), slotIndex);
         }
     }
 
@@ -213,7 +212,7 @@ public class GsmSmsCbMessage {
     private static Pair<Integer, List<Geometry>> parseWarningAreaCoordinates(
             byte[] pdu, int wacOffset) {
         // little-endian
-        int wacDataLength = (pdu[wacOffset + 1] << 8) | pdu[wacOffset];
+        int wacDataLength = ((pdu[wacOffset + 1] & 0xff) << 8) | (pdu[wacOffset] & 0xff);
         int offset = wacOffset + 2;
 
         if (offset + wacDataLength > pdu.length) {

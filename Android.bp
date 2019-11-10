@@ -33,9 +33,19 @@ android_app {
      manifest: "AndroidManifest_Platform.xml",
 }
 
+// used to share common constants between cellbroadcastservice and cellbroadcastreceier
 filegroup {
     name: "cellbroadcast-constants-shared-srcs",
     srcs: [
         "src/com/android/cellbroadcastservice/SmsCbConstants.java",
+    ],
+}
+
+// used to share src with unit test app
+filegroup {
+    name: "cellbroadcast-shared-srcs",
+    srcs: [
+        "src/**/*.java",
+        ":framework-cellbroadcast-shared-srcs",
     ],
 }

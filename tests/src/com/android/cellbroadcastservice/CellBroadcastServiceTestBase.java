@@ -147,4 +147,50 @@ public class CellBroadcastServiceTestBase extends TestCase {
         mInstanceKeys.clear();
         mOldInstances.clear();
     }
+
+    /**
+     * Converts a hex String to a byte array.
+     *
+     * @param s A string of hexadecimal characters, must be an even number of
+     *          chars long
+     *
+     * @return byte array representation
+     *
+     * @throws RuntimeException on invalid format
+     */
+    public static byte[] hexStringToBytes(String s) {
+        byte[] ret;
+
+        if (s == null) return null;
+
+        int sz = s.length();
+
+        ret = new byte[sz / 2];
+
+        for (int i = 0; i < sz; i += 2) {
+            ret[i / 2] = (byte) ((hexCharToInt(s.charAt(i)) << 4) | hexCharToInt(s.charAt(i + 1)));
+        }
+
+        return ret;
+    }
+
+    /**
+     * Converts a hex char to its integer value
+     *
+     * @param c A single hexadecimal character. Must be in one of these ranges:
+     *          - '0' to '9', or
+     *          - 'a' to 'f', or
+     *          - 'A' to 'F'
+     *
+     * @return the integer representation of {@code c}
+     *
+     * @throws RuntimeException on invalid character
+     */
+    private static int hexCharToInt(char c) {
+        if (c >= '0' && c <= '9') return (c - '0');
+        if (c >= 'A' && c <= 'F') return (c - 'A' + 10);
+        if (c >= 'a' && c <= 'f') return (c - 'a' + 10);
+
+        throw new RuntimeException("invalid hex char '" + c + "'");
+    }
 }
