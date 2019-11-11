@@ -67,6 +67,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -365,7 +366,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         && message.getEtwsWarningInfo().isPrimary()
                         != messageToCheck.getEtwsWarningInfo().isPrimary()) {
                     // Not a dup. Check next one.
-                    log("Service category check. Not a dup. " + messageToCheck);
+                    log("ETWS primary check. Not a dup. " + messageToCheck);
                     continue;
                 }
 
@@ -373,12 +374,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 // messages on different techs (i.e. GSM / CDMA), so we need to compare service
                 // category cross techs.
                 if (message.getServiceCategory() != messageToCheck.getServiceCategory()
-                        && mServiceCategoryCrossRATMap.get(message.getServiceCategory())
-                        != messageToCheck.getServiceCategory()
-                        && mServiceCategoryCrossRATMap.get(messageToCheck.getServiceCategory())
-                        != message.getServiceCategory()) {
+                        && !Objects.equals(mServiceCategoryCrossRATMap.get(
+                                message.getServiceCategory()), messageToCheck.getServiceCategory())
+                        && !Objects.equals(mServiceCategoryCrossRATMap.get(
+                                messageToCheck.getServiceCategory()),
+                        message.getServiceCategory())) {
                     // Not a dup. Check next one.
-                    log("ETWS primary check. Not a dup. " + messageToCheck);
+                    log("Service category check. Not a dup. " + messageToCheck);
                     continue;
                 }
 
