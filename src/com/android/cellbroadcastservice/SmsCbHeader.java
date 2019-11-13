@@ -18,8 +18,7 @@ package com.android.cellbroadcastservice;
 
 import android.telephony.SmsCbCmasInfo;
 import android.telephony.SmsCbEtwsInfo;
-
-import com.android.internal.telephony.SmsConstants;
+import android.telephony.SmsMessage;
 
 import dalvik.annotation.compat.UnsupportedAppUsage;
 
@@ -522,42 +521,42 @@ public class SmsCbHeader {
             // section 5.
             switch ((dataCodingScheme & 0xf0) >> 4) {
                 case 0x00:
-                    encoding = SmsConstants.ENCODING_7BIT;
+                    encoding = SmsMessage.ENCODING_7BIT;
                     language = LANGUAGE_CODES_GROUP_0[dataCodingScheme & 0x0f];
                     break;
 
                 case 0x01:
                     hasLanguageIndicator = true;
                     if ((dataCodingScheme & 0x0f) == 0x01) {
-                        encoding = SmsConstants.ENCODING_16BIT;
+                        encoding = SmsMessage.ENCODING_16BIT;
                     } else {
-                        encoding = SmsConstants.ENCODING_7BIT;
+                        encoding = SmsMessage.ENCODING_7BIT;
                     }
                     break;
 
                 case 0x02:
-                    encoding = SmsConstants.ENCODING_7BIT;
+                    encoding = SmsMessage.ENCODING_7BIT;
                     language = LANGUAGE_CODES_GROUP_2[dataCodingScheme & 0x0f];
                     break;
 
                 case 0x03:
-                    encoding = SmsConstants.ENCODING_7BIT;
+                    encoding = SmsMessage.ENCODING_7BIT;
                     break;
 
                 case 0x04:
                 case 0x05:
                     switch ((dataCodingScheme & 0x0c) >> 2) {
                         case 0x01:
-                            encoding = SmsConstants.ENCODING_8BIT;
+                            encoding = SmsMessage.ENCODING_8BIT;
                             break;
 
                         case 0x02:
-                            encoding = SmsConstants.ENCODING_16BIT;
+                            encoding = SmsMessage.ENCODING_16BIT;
                             break;
 
                         case 0x00:
                         default:
-                            encoding = SmsConstants.ENCODING_7BIT;
+                            encoding = SmsMessage.ENCODING_7BIT;
                             break;
                     }
                     break;
@@ -574,15 +573,15 @@ public class SmsCbHeader {
 
                 case 0x0f:
                     if (((dataCodingScheme & 0x04) >> 2) == 0x01) {
-                        encoding = SmsConstants.ENCODING_8BIT;
+                        encoding = SmsMessage.ENCODING_8BIT;
                     } else {
-                        encoding = SmsConstants.ENCODING_7BIT;
+                        encoding = SmsMessage.ENCODING_7BIT;
                     }
                     break;
 
                 default:
                     // Reserved values are to be treated as 7-bit
-                    encoding = SmsConstants.ENCODING_7BIT;
+                    encoding = SmsMessage.ENCODING_7BIT;
                     break;
             }
 

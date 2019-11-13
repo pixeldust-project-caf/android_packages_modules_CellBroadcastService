@@ -29,6 +29,7 @@ import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CbGeoUtils.LatLng;
 import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
+import android.telephony.SmsMessage;
 import android.util.Pair;
 import android.util.Slog;
 
@@ -36,9 +37,7 @@ import com.android.cellbroadcastservice.CbGeoUtils.Circle;
 import com.android.cellbroadcastservice.CbGeoUtils.Polygon;
 import com.android.cellbroadcastservice.GsmSmsCbMessage.GeoFencingTriggerMessage.CellBroadcastIdentity;
 import com.android.cellbroadcastservice.SmsCbHeader.DataCodingScheme;
-import com.android.internal.R;
-import com.android.internal.telephony.GsmAlphabet;
-import com.android.internal.telephony.SmsConstants;
+import com.android.internal.annotations.VisibleForTesting;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -67,7 +66,8 @@ public class GsmSmsCbMessage {
      * @param category ETWS message category defined in SmsCbConstants
      * @return ETWS text message in string. Return an empty string if no match.
      */
-    private static String getEtwsPrimaryMessage(Context context, int category) {
+    @VisibleForTesting
+    public static String getEtwsPrimaryMessage(Context context, int category) {
         final Resources r = context.getResources();
         switch (category) {
             case ETWS_WARNING_TYPE_EARTHQUAKE:
@@ -288,7 +288,8 @@ public class GsmSmsCbMessage {
      * @param pdu the PDU to decode
      * @return a pair of string containing the language and body of the message in order
      */
-    private static Pair<String, String> parseUmtsBody(SmsCbHeader header, byte[] pdu) {
+    private static Pair<String, String> parseUmtsBody(SmsCbHeader header,
+            byte[] pdu) {
         // Payload may contain multiple pages
         int nrPages = pdu[SmsCbHeader.PDU_HEADER_LENGTH];
         String language = header.getDataCodingSchemeStructedData().language;
@@ -327,7 +328,8 @@ public class GsmSmsCbMessage {
      * @param pdu the PDU to decode
      * @return a pair of string containing the language and body of the message in order
      */
-    private static Pair<String, String> parseGsmBody(SmsCbHeader header, byte[] pdu) {
+    private static Pair<String, String> parseGsmBody(SmsCbHeader header,
+            byte[] pdu) {
         // Payload is one single page
         int offset = SmsCbHeader.PDU_HEADER_LENGTH;
         int length = pdu.length - offset;
@@ -343,13 +345,13 @@ public class GsmSmsCbMessage {
      * @param dcs data coding scheme
      * @return a Pair of Strings containing the language and body of the message
      */
-    private static Pair<String, String> unpackBody(byte[] pdu, int offset, int length,
-            DataCodingScheme dcs) {
+    private static Pair<String, String> unpackBody(byte[] pdu, int offset,
+            int length, DataCodingScheme dcs) {
         String body = null;
 
         String language = dcs.language;
         switch (dcs.encoding) {
-            case SmsConstants.ENCODING_7BIT:
+            case SmsMessage.ENCODING_7BIT:
                 body = GsmAlphabet.gsm7BitPackedToString(pdu, offset, length * 8 / 7);
 
                 if (dcs.hasLanguageIndicator && body != null && body.length() > 2) {
@@ -360,7 +362,7 @@ public class GsmSmsCbMessage {
                 }
                 break;
 
-            case SmsConstants.ENCODING_16BIT:
+            case SmsMessage.ENCODING_16BIT:
                 if (dcs.hasLanguageIndicator && pdu.length >= offset + 2) {
                     // Language is two GSM characters.
                     // The actual body text is offset by 2 bytes.

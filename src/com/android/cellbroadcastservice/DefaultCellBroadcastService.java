@@ -101,7 +101,7 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
      */
     private SmsCbMessage parseBroadcastSms(int slotIndex, String plmn, byte[] bearerData,
             int serviceCategory) {
-        BearerData bData = BearerData.decode(bearerData, serviceCategory);
+        BearerData bData = BearerData.decode(getApplicationContext(), bearerData, serviceCategory);
         if (bData == null) {
             Log.w(TAG, "BearerData.decode() returned null");
             return null;

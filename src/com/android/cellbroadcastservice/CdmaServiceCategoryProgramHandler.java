@@ -23,6 +23,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Looper;
 import android.os.Message;
 import android.provider.Telephony.Sms.Intents;
 import android.telephony.SubscriptionManager;
@@ -44,7 +45,7 @@ public final class CdmaServiceCategoryProgramHandler extends WakeLockStateMachin
      * Create a new CDMA inbound SMS handler.
      */
     CdmaServiceCategoryProgramHandler(Context context) {
-        super("CdmaServiceCategoryProgramHandler", context);
+        super("CdmaServiceCategoryProgramHandler", context, Looper.myLooper());
         mContext = context;
     }
 

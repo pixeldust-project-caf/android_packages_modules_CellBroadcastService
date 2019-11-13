@@ -18,7 +18,6 @@ package com.android.cellbroadcastservice;
 
 import android.util.SparseIntArray;
 
-import com.android.internal.telephony.SmsHeader;
 import com.android.internal.util.HexDump;
 
 import dalvik.annotation.compat.UnsupportedAppUsage;

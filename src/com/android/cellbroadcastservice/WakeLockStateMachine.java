@@ -20,6 +20,7 @@ import android.annotation.UnsupportedAppUsage;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Looper;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.SystemProperties;
@@ -67,8 +68,8 @@ public abstract class WakeLockStateMachine extends StateMachine {
     private final IdleState mIdleState = new IdleState();
     private final WaitingState mWaitingState = new WaitingState();
 
-    protected WakeLockStateMachine(String debugTag, Context context) {
-        super(debugTag);
+    protected WakeLockStateMachine(String debugTag, Context context, Looper looper) {
+        super(debugTag, looper);
 
         mContext = context;
 

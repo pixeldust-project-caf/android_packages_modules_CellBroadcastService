@@ -22,5 +22,12 @@
       Can be referenced in java code as: com.android.internal.R.<type>.<name>
       and in layout xml as: "@*android:<type>/<name>" -->
 
-    <java-symbol type="array" name="config_defaultCellBroadcastReceiverPkgs" />
+	<java-symbol type="array" name="config_defaultCellBroadcastReceiverPkgs" />
+
+	<!-- ETWS primary messages -->
+	<java-symbol type="string" name="etws_primary_default_message_earthquake" />
+	<java-symbol type="string" name="etws_primary_default_message_tsunami" />
+	<java-symbol type="string" name="etws_primary_default_message_earthquake_and_tsunami" />
+	<java-symbol type="string" name="etws_primary_default_message_test" />
+	<java-symbol type="string" name="etws_primary_default_message_others" />
 </resources>

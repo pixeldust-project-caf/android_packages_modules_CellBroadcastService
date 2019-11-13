@@ -4,6 +4,7 @@ java_defaults {
     min_sdk_version: "29",
     srcs: [
       "src/**/*.java",
+      ":framework-annotations",
       ":framework-cellbroadcast-shared-srcs",
     ],
     libs: ["telephony-common"],
