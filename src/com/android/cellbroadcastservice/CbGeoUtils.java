@@ -17,11 +17,10 @@
 package com.android.cellbroadcastservice;
 
 import android.annotation.NonNull;
-import android.telephony.Rlog;
+import android.telephony.CbGeoUtils.Geometry;
+import android.telephony.CbGeoUtils.LatLng;
 import android.text.TextUtils;
-
-import com.android.internal.telephony.CbGeoUtils.Geometry;
-import com.android.internal.telephony.CbGeoUtils.LatLng;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +53,7 @@ public class CbGeoUtils {
     /**
      * The class represents a simple polygon with at least 3 points.
      */
-    public static class Polygon implements com.android.internal.telephony.CbGeoUtils.Geometry {
+    public static class Polygon implements Geometry {
         /**
          * In order to reduce the loss of precision in floating point calculations, all vertices
          * of the polygon are scaled. Set the value of scale to 1000 can take into account the
@@ -232,7 +231,7 @@ public class CbGeoUtils {
                     geometries.add(new Polygon(vertices));
                     break;
                 default:
-                    Rlog.e(TAG, "Invalid geometry format " + geometryStr);
+                    Log.e(TAG, "Invalid geometry format " + geometryStr);
             }
         }
         return geometries;
@@ -285,7 +284,7 @@ public class CbGeoUtils {
             sb.append("|");
             sb.append(circle.getRadius());
         } else {
-            Rlog.e(TAG, "Unsupported geometry object " + geometry);
+            Log.e(TAG, "Unsupported geometry object " + geometry);
             return null;
         }
         return sb.toString();

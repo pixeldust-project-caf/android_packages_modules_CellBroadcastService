@@ -1,9 +1,10 @@
 // Copyright 2019 The Android Open Source Project
-
-android_app {
-    name: "CellBroadcastServiceModule",
+java_defaults {
+    name: "CellBroadcastServiceCommon",
+    min_sdk_version: "29",
     srcs: [
       "src/**/*.java",
+      ":framework-annotations",
       ":framework-cellbroadcast-shared-srcs",
     ],
     libs: ["telephony-common"],
@@ -14,11 +15,38 @@ android_app {
     optimize: {
         proguard_flags_files: ["proguard.flags"],
     },
+    jarjar_rules: "cellbroadcast-jarjar-rules.txt",
 }
 
+android_app {
+    name: "CellBroadcastServiceModule",
+    defaults: ["CellBroadcastServiceCommon"],
+    certificate: "networkstack",
+    manifest: "AndroidManifest.xml",
+}
+
+android_app {
+     name: "CellBroadcastServiceModulePlatform",
+     defaults: ["CellBroadcastServiceCommon"],
+     certificate: "platform",
+     // CellBroadcastServicePlatformModule is a replacement for CellBroadcastServiceModule
+     overrides: ["CellBroadcastServiceModule"],
+     manifest: "AndroidManifest_Platform.xml",
+}
+
+// used to share common constants between cellbroadcastservice and cellbroadcastreceier
 filegroup {
     name: "cellbroadcast-constants-shared-srcs",
     srcs: [
         "src/com/android/cellbroadcastservice/SmsCbConstants.java",
+    ],
+}
+
+// used to share src with unit test app
+filegroup {
+    name: "cellbroadcast-shared-srcs",
+    srcs: [
+        "src/**/*.java",
+        ":framework-cellbroadcast-shared-srcs",
     ],
 }

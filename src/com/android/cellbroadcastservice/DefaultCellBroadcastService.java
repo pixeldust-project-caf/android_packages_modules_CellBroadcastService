@@ -17,12 +17,20 @@
 package com.android.cellbroadcastservice;
 
 import android.content.Context;
+import android.os.Bundle;
 import android.telephony.CellBroadcastService;
 import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.telephony.cdma.CdmaSmsCbProgramData;
 import android.util.Log;
+
+import com.android.internal.annotations.VisibleForTesting;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * The default implementation of CellBroadcastService, which is used for handling GSM and CDMA
@@ -31,6 +39,7 @@ import android.util.Log;
 public class DefaultCellBroadcastService extends CellBroadcastService {
     private GsmCellBroadcastHandler mGsmCellBroadcastHandler;
     private CellBroadcastHandler mCdmaCellBroadcastHandler;
+    private CdmaServiceCategoryProgramHandler mCdmaScpHandler;
 
     private static final String TAG = "DefaultCellBroadcastService";
 
@@ -44,6 +53,8 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
                 GsmCellBroadcastHandler.makeGsmCellBroadcastHandler(getApplicationContext());
         mCdmaCellBroadcastHandler =
                 CellBroadcastHandler.makeCellBroadcastHandler(getApplicationContext());
+        mCdmaScpHandler =
+                CdmaServiceCategoryProgramHandler.makeScpHandler(getApplicationContext());
     }
 
     @Override
@@ -67,10 +78,19 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
         } else {
             plmn = "";
         }
-        SmsCbMessage message = parseBroadcastSms(slotIndex, plmn, bearerData, serviceCategory);
+        SmsCbMessage message = parseBroadcastSms(getApplicationContext(), slotIndex, plmn,
+                bearerData, serviceCategory);
         if (message != null) {
             mCdmaCellBroadcastHandler.onCdmaCellBroadcastSms(message);
         }
+    }
+
+    @Override
+    public void onCdmaScpMessage(int slotIndex, List<CdmaSmsCbProgramData> programData,
+            String originatingAddress, Consumer<Bundle> callback) {
+        Log.d(TAG, "onCdmaScpMessage received message on slotId=" + slotIndex);
+        mCdmaScpHandler.onCdmaScpMessage(slotIndex, new ArrayList<>(programData),
+                originatingAddress, callback);
     }
 
     /**
@@ -81,9 +101,11 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
      * @param bearerData the bearerData of the SMS
      * @param serviceCategory the service category of the broadcast
      */
-    private SmsCbMessage parseBroadcastSms(int slotIndex, String plmn, byte[] bearerData,
+    @VisibleForTesting
+    public static SmsCbMessage parseBroadcastSms(Context context, int slotIndex, String plmn,
+            byte[] bearerData,
             int serviceCategory) {
-        BearerData bData = BearerData.decode(bearerData, serviceCategory);
+        BearerData bData = BearerData.decode(context, bearerData, serviceCategory);
         if (bData == null) {
             Log.w(TAG, "BearerData.decode() returned null");
             return null;

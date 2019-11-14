@@ -16,14 +16,10 @@
 
 package com.android.cellbroadcastservice;
 
-import android.content.res.Resources;
+import android.content.Context;
 import android.telephony.SmsCbCmasInfo;
 import android.telephony.cdma.CdmaSmsCbProgramData;
 import android.util.Log;
-
-import com.android.internal.telephony.GsmAlphabet;
-import com.android.internal.telephony.SmsHeader;
-import com.android.internal.util.BitwiseInputStream;
 
 /**
  * An object to decode CDMA SMS bearer data.
@@ -36,22 +32,22 @@ public final class BearerData {
      * (See 3GPP2 C.S0015-B, v2.0, table 4.5-1)
      * NOTE: Unneeded subparameter types are not included
      */
-    private final static byte SUBPARAM_MESSAGE_IDENTIFIER               = 0x00;
-    private final static byte SUBPARAM_USER_DATA                        = 0x01;
-    private final static byte SUBPARAM_PRIORITY_INDICATOR               = 0x08;
-    private final static byte SUBPARAM_LANGUAGE_INDICATOR               = 0x0D;
+    private static final byte SUBPARAM_MESSAGE_IDENTIFIER = 0x00;
+    private static final byte SUBPARAM_USER_DATA = 0x01;
+    private static final byte SUBPARAM_PRIORITY_INDICATOR = 0x08;
+    private static final byte SUBPARAM_LANGUAGE_INDICATOR = 0x0D;
 
     // All other values after this are reserved.
-    private final static byte SUBPARAM_ID_LAST_DEFINED                  = 0x17;
+    private static final byte SUBPARAM_ID_LAST_DEFINED = 0x17;
 
     /**
      * Supported priority modes for CDMA SMS messages
      * (See 3GPP2 C.S0015-B, v2.0, table 4.5.9-1)
      */
-    public static final int PRIORITY_NORMAL        = 0x0;
-    public static final int PRIORITY_INTERACTIVE   = 0x1;
-    public static final int PRIORITY_URGENT        = 0x2;
-    public static final int PRIORITY_EMERGENCY     = 0x3;
+    public static final int PRIORITY_NORMAL = 0x0;
+    public static final int PRIORITY_INTERACTIVE = 0x1;
+    public static final int PRIORITY_URGENT = 0x2;
+    public static final int PRIORITY_EMERGENCY = 0x3;
 
     /**
      * Language Indicator values.  NOTE: the spec (3GPP2 C.S0015-B,
@@ -60,14 +56,21 @@ public final class BearerData {
      * It would seem reasonable to assume the values from C.R1001-F
      * (table 9.2-1) are to be used instead.
      */
-    public static final int LANGUAGE_UNKNOWN  = 0x00;
-    public static final int LANGUAGE_ENGLISH  = 0x01;
-    public static final int LANGUAGE_FRENCH   = 0x02;
-    public static final int LANGUAGE_SPANISH  = 0x03;
+    public static final int LANGUAGE_UNKNOWN = 0x00;
+    public static final int LANGUAGE_ENGLISH = 0x01;
+    public static final int LANGUAGE_FRENCH = 0x02;
+    public static final int LANGUAGE_SPANISH = 0x03;
     public static final int LANGUAGE_JAPANESE = 0x04;
-    public static final int LANGUAGE_KOREAN   = 0x05;
-    public static final int LANGUAGE_CHINESE  = 0x06;
-    public static final int LANGUAGE_HEBREW   = 0x07;
+    public static final int LANGUAGE_KOREAN = 0x05;
+    public static final int LANGUAGE_CHINESE = 0x06;
+    public static final int LANGUAGE_HEBREW = 0x07;
+
+    /**
+     * Supported message types for CDMA SMS messages
+     * (See 3GPP2 C.S0015-B, v2.0, table 4.5.1-1)
+     * Used for CdmaSmsCbTest.
+     */
+    public static final int MESSAGE_TYPE_DELIVER        = 0x01;
 
     /**
      * 16-bit value indicating the message ID, which increments modulo 65536.
@@ -105,6 +108,7 @@ public final class BearerData {
 
     /**
      * CMAS warning notification information.
+     *
      * @see #decodeCmasUserData(BearerData, int)
      */
     public SmsCbCmasInfo cmasWarningInfo;
@@ -112,7 +116,8 @@ public final class BearerData {
     /**
      * Construct an empty BearerData.
      */
-    private BearerData() {}
+    private BearerData() {
+    }
 
     private static class CodingException extends Exception {
         public CodingException(String s) {
@@ -122,6 +127,7 @@ public final class BearerData {
 
     /**
      * Returns the language indicator as a two-character ISO 639 string.
+     *
      * @return a two character ISO 639 language code
      */
     public String getLanguage() {
@@ -130,6 +136,7 @@ public final class BearerData {
 
     /**
      * Converts a CDMA language indicator value to an ISO 639 two character language code.
+     *
      * @param languageValue the CDMA language value to convert
      * @return the two character ISO 639 language code for the specified value, or null if unknown
      */
@@ -186,7 +193,7 @@ public final class BearerData {
             bData.hasUserDataHeader = (inStream.read(1) == 1);
             inStream.skip(3);
         }
-        if ((! decodeSuccess) || (paramBits > 0)) {
+        if ((!decodeSuccess) || (paramBits > 0)) {
             Log.d(LOG_TAG, "MESSAGE_IDENTIFIER decode " +
                     (decodeSuccess ? "succeeded" : "failed") +
                     " (extra bits = " + paramBits + ")");
@@ -196,8 +203,7 @@ public final class BearerData {
     }
 
     private static boolean decodeReserved(BitwiseInputStream inStream, int subparamId)
-            throws BitwiseInputStream.AccessException, CodingException
-    {
+            throws BitwiseInputStream.AccessException, CodingException {
         boolean decodeSuccess = false;
         int subparamLen = inStream.read(8); // SUBPARAM_LEN
         int paramBits = subparamLen * 8;
@@ -216,8 +222,7 @@ public final class BearerData {
     }
 
     private static boolean decodeUserData(BearerData bData, BitwiseInputStream inStream)
-            throws BitwiseInputStream.AccessException
-    {
+            throws BitwiseInputStream.AccessException {
         int paramBits = inStream.read(8) * 8;
         bData.userData = new UserData();
         bData.userData.msgEncoding = inStream.read(5);
@@ -237,14 +242,12 @@ public final class BearerData {
     }
 
     private static String decodeUtf8(byte[] data, int offset, int numFields)
-            throws CodingException
-    {
+            throws CodingException {
         return decodeCharset(data, offset, numFields, 1, "UTF-8");
     }
 
     private static String decodeUtf16(byte[] data, int offset, int numFields)
-            throws CodingException
-    {
+            throws CodingException {
         // Subtract header and possible padding byte (at end) from num fields.
         int padding = offset % 2;
         numFields -= (offset + padding) / 2;
@@ -252,8 +255,7 @@ public final class BearerData {
     }
 
     private static String decodeCharset(byte[] data, int offset, int numFields, int width,
-            String charset) throws CodingException
-    {
+            String charset) throws CodingException {
         if (numFields < 0 || (numFields * width + offset) > data.length) {
             // Try to decode the max number of characters in payload
             int padding = offset % width;
@@ -274,8 +276,7 @@ public final class BearerData {
     }
 
     private static String decode7bitAscii(byte[] data, int offset, int numFields)
-            throws CodingException
-    {
+            throws CodingException {
         try {
             int offsetBits = offset * 8;
             int offsetSeptets = (offsetBits + 6) / 7;
@@ -310,15 +311,14 @@ public final class BearerData {
     }
 
     private static String decode7bitGsm(byte[] data, int offset, int numFields)
-            throws CodingException
-    {
+            throws CodingException {
         // Start reading from the next 7-bit aligned boundary after offset.
         int offsetBits = offset * 8;
         int offsetSeptets = (offsetBits + 6) / 7;
         numFields -= offsetSeptets;
         int paddingBits = (offsetSeptets * 7) - offsetBits;
-        String result = GsmAlphabet.gsm7BitPackedToString(data, offset, numFields, paddingBits,
-                0, 0);
+        String result = GsmAlphabet.gsm7BitPackedToString(data, offset, numFields,
+                paddingBits, 0, 0);
         if (result == null) {
             throw new CodingException("7bit GSM decoding failed");
         }
@@ -326,20 +326,18 @@ public final class BearerData {
     }
 
     private static String decodeLatin(byte[] data, int offset, int numFields)
-            throws CodingException
-    {
+            throws CodingException {
         return decodeCharset(data, offset, numFields, 1, "ISO-8859-1");
     }
 
     private static String decodeShiftJis(byte[] data, int offset, int numFields)
-            throws CodingException
-    {
+            throws CodingException {
         return decodeCharset(data, offset, numFields, 1, "Shift_JIS");
     }
 
-    private static String decodeGsmDcs(byte[] data, int offset, int numFields, int msgType)
-            throws CodingException
-    {
+    private static String decodeGsmDcs(byte[] data, int offset, int numFields,
+            int msgType)
+            throws CodingException {
         if ((msgType & 0xC0) != 0) {
             throw new CodingException("unsupported coding group ("
                     + msgType + ")");
@@ -358,9 +356,8 @@ public final class BearerData {
         }
     }
 
-    private static void decodeUserDataPayload(UserData userData, boolean hasUserDataHeader)
-            throws CodingException
-    {
+    private static void decodeUserDataPayload(Context context, UserData userData,
+            boolean hasUserDataHeader) throws CodingException {
         int offset = 0;
         if (hasUserDataHeader) {
             int udhLen = userData.payload[0] & 0x00FF;
@@ -374,7 +371,7 @@ public final class BearerData {
                 /*
                  *  Octet decoding depends on the carrier service.
                  */
-                boolean decodingtypeUTF8 = Resources.getSystem()
+                boolean decodingtypeUTF8 = context.getResources()
                         .getBoolean(R.bool.config_sms_utf8_support);
 
                 // Strip off any padding bytes, meaning any differences between the length of the
@@ -388,7 +385,8 @@ public final class BearerData {
                 userData.payload = payload;
 
                 if (!decodingtypeUTF8) {
-                    // There are many devices in the market that send 8bit text sms (latin encoded) as
+                    // There are many devices in the market that send 8bit text sms (latin
+                    // encoded) as
                     // octet encoded.
                     userData.payloadStr = decodeLatin(userData.payload, offset, userData.numFields);
                 } else {
@@ -404,7 +402,8 @@ public final class BearerData {
                 userData.payloadStr = decodeUtf16(userData.payload, offset, userData.numFields);
                 break;
             case UserData.ENCODING_GSM_7BIT_ALPHABET:
-                userData.payloadStr = decode7bitGsm(userData.payload, offset, userData.numFields);
+                userData.payloadStr = decode7bitGsm(userData.payload, offset,
+                        userData.numFields);
                 break;
             case UserData.ENCODING_LATIN:
                 userData.payloadStr = decodeLatin(userData.payload, offset, userData.numFields);
@@ -432,7 +431,7 @@ public final class BearerData {
             decodeSuccess = true;
             bData.language = inStream.read(8);
         }
-        if ((! decodeSuccess) || (paramBits > 0)) {
+        if ((!decodeSuccess) || (paramBits > 0)) {
             Log.d(LOG_TAG, "LANGUAGE_INDICATOR decode " +
                     (decodeSuccess ? "succeeded" : "failed") +
                     " (extra bits = " + paramBits + ")");
@@ -452,7 +451,7 @@ public final class BearerData {
             bData.priority = inStream.read(2);
             inStream.skip(6);
         }
-        if ((! decodeSuccess) || (paramBits > 0)) {
+        if ((!decodeSuccess) || (paramBits > 0)) {
             Log.d(LOG_TAG, "PRIORITY_INDICATOR decode " +
                     (decodeSuccess ? "succeeded" : "failed") +
                     " (extra bits = " + paramBits + ")");
@@ -489,7 +488,7 @@ public final class BearerData {
      *
      * @param serviceCategory is the service category from the SMS envelope
      */
-    private static void decodeCmasUserData(BearerData bData, int serviceCategory)
+    private static void decodeCmasUserData(Context context, BearerData bData, int serviceCategory)
             throws BitwiseInputStream.AccessException, CodingException {
         BitwiseInputStream inStream = new BitwiseInputStream(bData.userData.payload);
         if (inStream.available() < 8) {
@@ -540,7 +539,7 @@ public final class BearerData {
 
                     alertUserData.numFields = numFields;
                     alertUserData.payload = inStream.readByteArray(recordLen * 8 - 5);
-                    decodeUserDataPayload(alertUserData, false);
+                    decodeUserDataPayload(context, alertUserData, false);
                     bData.userData = alertUserData;
                     break;
 
@@ -573,11 +572,11 @@ public final class BearerData {
      * Create BearerData object from serialized representation.
      * (See 3GPP2 C.R1001-F, v1.0, section 4.5 for layout details)
      *
-     * @param smsData byte array of raw encoded SMS bearer data.
+     * @param smsData         byte array of raw encoded SMS bearer data.
      * @param serviceCategory the envelope service category (for CMAS alert handling)
      * @return an instance of BearerData.
      */
-    public static BearerData decode(byte[] smsData, int serviceCategory) {
+    public static BearerData decode(Context context, byte[] smsData, int serviceCategory) {
         try {
             BitwiseInputStream inStream = new BitwiseInputStream(smsData);
             BearerData bData = new BearerData();
@@ -593,30 +592,30 @@ public final class BearerData {
                 // reserved subparams are just skipped.
                 if ((foundSubparamMask & subparamIdBit) != 0 &&
                         (subparamId >= SUBPARAM_MESSAGE_IDENTIFIER &&
-                        subparamId <= SUBPARAM_ID_LAST_DEFINED)) {
+                                subparamId <= SUBPARAM_ID_LAST_DEFINED)) {
                     throw new CodingException("illegal duplicate subparameter (" +
-                                              subparamId + ")");
+                            subparamId + ")");
                 }
                 boolean decodeSuccess;
                 switch (subparamId) {
-                case SUBPARAM_MESSAGE_IDENTIFIER:
-                    decodeSuccess = decodeMessageId(bData, inStream);
-                    break;
-                case SUBPARAM_USER_DATA:
-                    decodeSuccess = decodeUserData(bData, inStream);
-                    break;
-                case SUBPARAM_LANGUAGE_INDICATOR:
-                    decodeSuccess = decodeLanguageIndicator(bData, inStream);
-                    break;
-                case SUBPARAM_PRIORITY_INDICATOR:
-                    decodeSuccess = decodePriorityIndicator(bData, inStream);
-                    break;
-                default:
-                    decodeSuccess = decodeReserved(inStream, subparamId);
+                    case SUBPARAM_MESSAGE_IDENTIFIER:
+                        decodeSuccess = decodeMessageId(bData, inStream);
+                        break;
+                    case SUBPARAM_USER_DATA:
+                        decodeSuccess = decodeUserData(bData, inStream);
+                        break;
+                    case SUBPARAM_LANGUAGE_INDICATOR:
+                        decodeSuccess = decodeLanguageIndicator(bData, inStream);
+                        break;
+                    case SUBPARAM_PRIORITY_INDICATOR:
+                        decodeSuccess = decodePriorityIndicator(bData, inStream);
+                        break;
+                    default:
+                        decodeSuccess = decodeReserved(inStream, subparamId);
                 }
                 if (decodeSuccess &&
                         (subparamId >= SUBPARAM_MESSAGE_IDENTIFIER &&
-                        subparamId <= SUBPARAM_ID_LAST_DEFINED)) {
+                                subparamId <= SUBPARAM_ID_LAST_DEFINED)) {
                     foundSubparamMask |= subparamIdBit;
                 }
             }
@@ -625,9 +624,9 @@ public final class BearerData {
             }
             if (bData.userData != null) {
                 if (isCmasAlertCategory(serviceCategory)) {
-                    decodeCmasUserData(bData, serviceCategory);
+                    decodeCmasUserData(context, bData, serviceCategory);
                 } else {
-                    decodeUserDataPayload(bData.userData, bData.hasUserDataHeader);
+                    decodeUserDataPayload(context, bData.userData, bData.hasUserDataHeader);
                 }
             }
             return bData;

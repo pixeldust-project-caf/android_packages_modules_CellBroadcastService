@@ -18,7 +18,6 @@ package com.android.cellbroadcastservice;
 
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
-import static android.content.PermissionChecker.PERMISSION_GRANTED;
 import static android.provider.Settings.Secure.CMAS_ADDITIONAL_BROADCAST_PKG;
 
 import android.Manifest;
@@ -26,10 +25,14 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Activity;
 import android.app.AppOpsManager;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.content.PermissionChecker;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
+import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationRequest;
@@ -37,26 +40,38 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerExecutor;
+import android.os.Looper;
 import android.os.Message;
+import android.os.Process;
+import android.os.SystemClock;
+import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.provider.Settings;
 import android.provider.Telephony;
 import android.provider.Telephony.CellBroadcasts;
+import android.telephony.CbGeoUtils.Geometry;
+import android.telephony.CbGeoUtils.LatLng;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
+import android.telephony.cdma.CdmaSmsCbProgramData;
+import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Log;
 
-import com.android.internal.telephony.CbGeoUtils.Geometry;
-import com.android.internal.telephony.CbGeoUtils.LatLng;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
+import com.android.internal.annotations.VisibleForTesting;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Dispatch new Cell Broadcasts to receivers. Acquires a private wakelock until the broadcast
@@ -65,21 +80,138 @@ import java.util.concurrent.TimeUnit;
 public class CellBroadcastHandler extends WakeLockStateMachine {
     private static final String EXTRA_MESSAGE = "message";
 
+    /**
+     * To disable cell broadcast duplicate detection for debugging purposes
+     * <code>adb shell am broadcast -a com.android.cellbroadcastservice.action.DUPLICATE_DETECTION
+     * --ez enable false</code>
+     *
+     * To enable cell broadcast duplicate detection for debugging purposes
+     * <code>adb shell am broadcast -a com.android.cellbroadcastservice.action.DUPLICATE_DETECTION
+     * --ez enable true</code>
+     */
+    private static final String ACTION_DUPLICATE_DETECTION =
+            "com.android.cellbroadcastservice.action.DUPLICATE_DETECTION";
+
+    /**
+     * The extra for cell broadcast duplicate detection enable/disable
+     */
+    private static final String EXTRA_ENABLE = "enable";
+
     private final LocalLog mLocalLog = new LocalLog(100);
+
+    private static final boolean IS_DEBUGGABLE = SystemProperties.getInt("ro.debuggable", 0) == 1;
 
     /** Uses to request the location update. */
     private final LocationRequester mLocationRequester;
 
+    /** Timestamp of last airplane mode on */
+    protected long mLastAirplaneModeTime = 0;
+
+    /** Resource cache */
+    private final Map<Integer, Resources> mResourcesCache = new HashMap<>();
+
+    /** Whether performing duplicate detection or not. Note this is for debugging purposes only. */
+    private boolean mEnableDuplicateDetection = true;
+
+    /**
+     * Service category equivalent map. The key is the GSM service category, the value is the CDMA
+     * service category.
+     */
+    private final Map<Integer, Integer> mServiceCategoryCrossRATMap;
+
     private CellBroadcastHandler(Context context) {
-        this("CellBroadcastHandler", context);
+        this("CellBroadcastHandler", context, Looper.myLooper());
     }
 
-    protected CellBroadcastHandler(String debugTag, Context context) {
-        super(debugTag, context);
+    protected CellBroadcastHandler(String debugTag, Context context, Looper looper) {
+        super(debugTag, context, looper);
         mLocationRequester = new LocationRequester(
                 context,
                 (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE),
                 getHandler());
+
+        // Adding GSM / CDMA service category mapping.
+        mServiceCategoryCrossRATMap = Stream.of(new Integer[][] {
+                // Presidential alert
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_PRESIDENTIAL_LEVEL,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_PRESIDENTIAL_LEVEL_ALERT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_PRESIDENTIAL_LEVEL_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_PRESIDENTIAL_LEVEL_ALERT},
+
+                // Extreme alert
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_EXTREME_IMMEDIATE_OBSERVED,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_EXTREME_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_EXTREME_IMMEDIATE_OBSERVED_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_EXTREME_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_EXTREME_IMMEDIATE_LIKELY,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_EXTREME_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_EXTREME_IMMEDIATE_LIKELY_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_EXTREME_THREAT},
+
+                // Severe alert
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_EXTREME_EXPECTED_OBSERVED,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_EXTREME_EXPECTED_OBSERVED_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_EXTREME_EXPECTED_LIKELY,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_EXTREME_EXPECTED_LIKELY_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_SEVERE_IMMEDIATE_OBSERVED,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_SEVERE_IMMEDIATE_OBSERVED_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_SEVERE_IMMEDIATE_LIKELY,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_SEVERE_IMMEDIATE_LIKELY_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_SEVERE_EXPECTED_OBSERVED,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_SEVERE_EXPECTED_OBSERVED_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_SEVERE_EXPECTED_LIKELY,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_SEVERE_EXPECTED_LIKELY_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_SEVERE_THREAT},
+
+                // Amber alert
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_CHILD_ABDUCTION_EMERGENCY,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_CHILD_ABDUCTION_EMERGENCY},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_CHILD_ABDUCTION_EMERGENCY_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_CHILD_ABDUCTION_EMERGENCY},
+
+                // Monthly test alert
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_REQUIRED_MONTHLY_TEST,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_TEST_MESSAGE},
+                { SmsCbConstants.MESSAGE_ID_CMAS_ALERT_REQUIRED_MONTHLY_TEST_LANGUAGE,
+                        CdmaSmsCbProgramData.CATEGORY_CMAS_TEST_MESSAGE},
+        }).collect(Collectors.toMap(data -> data[0], data -> data[1]));
+
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED);
+        if (Build.IS_DEBUGGABLE) {
+            intentFilter.addAction(ACTION_DUPLICATE_DETECTION);
+        }
+        mContext.registerReceiver(
+                new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        switch (intent.getAction()) {
+                            case Intent.ACTION_AIRPLANE_MODE_CHANGED:
+                                boolean airplaneModeOn = intent.getBooleanExtra("state", false);
+                                if (airplaneModeOn) {
+                                    mLastAirplaneModeTime = System.currentTimeMillis();
+                                    log("Airplane mode on.");
+                                }
+                                break;
+                            case ACTION_DUPLICATE_DETECTION:
+                                mEnableDuplicateDetection = intent.getBooleanExtra(EXTRA_ENABLE,
+                                        true);
+                                break;
+                        }
+
+                    }
+                }, intentFilter);
     }
 
     /**
@@ -103,8 +235,11 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     @Override
     protected boolean handleSmsMessage(Message message) {
         if (message.obj instanceof SmsCbMessage) {
-            handleBroadcastSms((SmsCbMessage) message.obj);
-            return true;
+            if (!isDuplicate((SmsCbMessage) message.obj)) {
+                handleBroadcastSms((SmsCbMessage) message.obj);
+                return true;
+            }
+            return false;
         } else {
             loge("handleMessage got object of type: " + message.obj.getClass().getName());
             return false;
@@ -117,12 +252,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
      */
     protected void handleBroadcastSms(SmsCbMessage message) {
         int slotIndex = message.getSlotIndex();
-        // Log Cellbroadcast msg received event
-        TelephonyMetrics metrics = TelephonyMetrics.getInstance();
-        metrics.writeNewCBSms(slotIndex, message.getMessageFormat(),
-                message.getMessagePriority(), message.isCmasMessage(), message.isEtwsMessage(),
-                message.getServiceCategory(), message.getSerialNumber(),
-                System.currentTimeMillis());
 
         // TODO: Database inserting can be time consuming, therefore this should be changed to
         // asynchronous.
@@ -142,7 +271,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 } else {
                     performGeoFencing(message, uri, message.getGeometries(), location, slotIndex);
                 }
-            }, message.getMaximumWaitingTime());
+            }, message.getMaximumWaitingDuration());
         } else {
             if (DBG) {
                 log("Broadcast the message directly because no geo-fencing required, "
@@ -151,6 +280,118 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             }
             broadcastMessage(message, uri, slotIndex);
         }
+    }
+
+    /**
+     * Check if the message is a duplicate
+     *
+     * @param message Cell broadcast message
+     * @return {@code true} if this message is a duplicate
+     */
+    @VisibleForTesting
+    public boolean isDuplicate(SmsCbMessage message) {
+        if (!mEnableDuplicateDetection) {
+            log("Duplicate detection was disabled for debugging purposes.");
+            return false;
+        }
+
+        // Find the cell broadcast message identify by the message identifier and serial number
+        // and is not broadcasted.
+        String where = CellBroadcasts.RECEIVED_TIME + ">?";
+
+        int slotIndex = message.getSlotIndex();
+        SubscriptionManager subMgr = (SubscriptionManager) mContext.getSystemService(
+                Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        int[] subIds = subMgr.getSubscriptionIds(slotIndex);
+        Resources res;
+        if (subIds != null) {
+            res = getResources(subIds[0]);
+        } else {
+            res = getResources(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID);
+        }
+
+        // Only consider cell broadcast messages received within certain period.
+        // By default it's 24 hours.
+        long expirationDuration = res.getInteger(R.integer.message_expiration_time);
+        long dupCheckTime = System.currentTimeMillis() - expirationDuration;
+
+        // Some carriers require reset duplication detection after airplane mode or reboot.
+        if (res.getBoolean(R.bool.reset_on_power_cycle_or_airplane_mode)) {
+            dupCheckTime = Long.max(dupCheckTime, mLastAirplaneModeTime);
+            dupCheckTime = Long.max(dupCheckTime,
+                    System.currentTimeMillis() - SystemClock.elapsedRealtime());
+        }
+
+        List<SmsCbMessage> cbMessages = new ArrayList<>();
+
+        try (Cursor cursor = mContext.getContentResolver().query(CellBroadcasts.CONTENT_URI,
+                // TODO: QUERY_COLUMNS_FWK is a hidden API, since we are going to move
+                //  CellBroadcastProvider to this module we can define those COLUMNS in side
+                //  CellBroadcastProvider and reference from there.
+                CellBroadcasts.QUERY_COLUMNS_FWK,
+                where,
+                new String[] {Long.toString(dupCheckTime)},
+                null)) {
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    cbMessages.add(SmsCbMessage.createFromCursor(cursor));
+                }
+            }
+        }
+
+        boolean compareMessageBody = res.getBoolean(R.bool.duplicate_compare_body);
+
+        log("Found " + cbMessages.size() + " messages since "
+                + DateFormat.getDateTimeInstance().format(dupCheckTime));
+        for (SmsCbMessage messageToCheck : cbMessages) {
+            // If messages are from different slots, then we only compare the message body.
+            if (message.getSlotIndex() != messageToCheck.getSlotIndex()) {
+                if (TextUtils.equals(message.getMessageBody(), messageToCheck.getMessageBody())) {
+                    log("Duplicate message detected from different slot. " + message);
+                    return true;
+                }
+            } else {
+                // Check serial number if message is from the same carrier.
+                if (message.getSerialNumber() != messageToCheck.getSerialNumber()) {
+                    // Not a dup. Check next one.
+                    log("Serial number check. Not a dup. " + messageToCheck);
+                    continue;
+                }
+
+                // ETWS primary / secondary should be treated differently.
+                if (message.isEtwsMessage() && messageToCheck.isEtwsMessage()
+                        && message.getEtwsWarningInfo().isPrimary()
+                        != messageToCheck.getEtwsWarningInfo().isPrimary()) {
+                    // Not a dup. Check next one.
+                    log("ETWS primary check. Not a dup. " + messageToCheck);
+                    continue;
+                }
+
+                // Check if the message category is different. Some carriers send cell broadcast
+                // messages on different techs (i.e. GSM / CDMA), so we need to compare service
+                // category cross techs.
+                if (message.getServiceCategory() != messageToCheck.getServiceCategory()
+                        && !Objects.equals(mServiceCategoryCrossRATMap.get(
+                                message.getServiceCategory()), messageToCheck.getServiceCategory())
+                        && !Objects.equals(mServiceCategoryCrossRATMap.get(
+                                messageToCheck.getServiceCategory()),
+                        message.getServiceCategory())) {
+                    // Not a dup. Check next one.
+                    log("Service category check. Not a dup. " + messageToCheck);
+                    continue;
+                }
+
+                // Compare message body if needed.
+                if (!compareMessageBody || TextUtils.equals(
+                        message.getMessageBody(), messageToCheck.getMessageBody())) {
+                    log("Duplicate message detected. " + message);
+                    return true;
+                }
+            }
+        }
+
+        log("Not a duplicate message. " + message);
+        return false;
     }
 
     /**
@@ -181,6 +422,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             logd("Device location is outside the broadcast area "
                     + CbGeoUtils.encodeGeometriesToString(broadcastArea));
         }
+
+        sendMessage(EVENT_BROADCAST_NOT_REQUIRED);
     }
 
     /**
@@ -194,6 +437,24 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     /**
+     * Get the subscription ID for a phone ID, or INVALID_SUBSCRIPTION_ID if the phone does not
+     * have an active sub
+     * @param phoneId the phoneId to use
+     * @return the associated sub id
+     */
+    protected int getSubIdForPhone(int phoneId) {
+        SubscriptionManager subMan =
+                (SubscriptionManager) mContext.getSystemService(
+                        Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        int[] subIds = subMan.getSubscriptionIds(phoneId);
+        if (subIds != null) {
+            return subIds[0];
+        } else {
+            return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        }
+    }
+
+    /**
      * Broadcast the {@code message} to the applications.
      * @param message a message need to broadcast
      * @param messageUri message's uri
@@ -201,23 +462,29 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     protected void broadcastMessage(@NonNull SmsCbMessage message, @Nullable Uri messageUri,
             int slotIndex) {
         String receiverPermission;
-        int appOp;
+        String appOp;
         String msg;
         Intent intent;
         if (message.isEmergencyMessage()) {
             msg = "Dispatching emergency SMS CB, SmsCbMessage is: " + message;
             log(msg);
             mLocalLog.log(msg);
-            intent = new Intent(Telephony.Sms.Intents.SMS_EMERGENCY_CB_RECEIVED_ACTION);
+            intent = new Intent(Telephony.Sms.Intents.ACTION_SMS_EMERGENCY_CB_RECEIVED);
             //Emergency alerts need to be delivered with high priority
             intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
             receiverPermission = Manifest.permission.RECEIVE_EMERGENCY_BROADCAST;
-            appOp = AppOpsManager.OP_RECEIVE_EMERGECY_SMS;
+            appOp = AppOpsManager.OPSTR_RECEIVE_EMERGENCY_BROADCAST;
 
             intent.putExtra(EXTRA_MESSAGE, message);
-            SubscriptionManager.putPhoneIdAndSubIdExtra(intent, slotIndex);
+            int subId = getSubIdForPhone(slotIndex);
+            if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                intent.putExtra("subscription", subId);
+                intent.putExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX, subId);
+            }
+            intent.putExtra("phone", slotIndex);
+            intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, slotIndex);
 
-            if (Build.IS_DEBUGGABLE) {
+            if (IS_DEBUGGABLE) {
                 // Send additional broadcast intent to the specified package. This is only for sl4a
                 // automation tests.
                 final String additionalPackage = Settings.Secure.getString(
@@ -225,9 +492,9 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 if (additionalPackage != null) {
                     Intent additionalIntent = new Intent(intent);
                     additionalIntent.setPackage(additionalPackage);
-                    mContext.sendOrderedBroadcastAsUser(additionalIntent, UserHandle.ALL,
-                            receiverPermission, appOp, null, getHandler(), Activity.RESULT_OK,
-                            null, null);
+                    mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
+                            additionalIntent, receiverPermission, appOp, null, getHandler(),
+                            Activity.RESULT_OK, null, null);
                 }
             }
 
@@ -237,8 +504,9 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             for (String pkg : pkgs) {
                 // Explicitly send the intent to all the configured cell broadcast receivers.
                 intent.setPackage(pkg);
-                mContext.sendOrderedBroadcastAsUser(intent, UserHandle.ALL, receiverPermission,
-                        appOp, mReceiver, getHandler(), Activity.RESULT_OK, null, null);
+                mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
+                        intent, receiverPermission, appOp, null, getHandler(),
+                        Activity.RESULT_OK, null, null);
             }
         } else {
             msg = "Dispatching SMS CB, SmsCbMessage is: " + message;
@@ -249,14 +517,15 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             // this intent.
             intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
             receiverPermission = Manifest.permission.RECEIVE_SMS;
-            appOp = AppOpsManager.OP_RECEIVE_SMS;
+            appOp = AppOpsManager.OPSTR_RECEIVE_SMS;
 
             intent.putExtra(EXTRA_MESSAGE, message);
             SubscriptionManager.putPhoneIdAndSubIdExtra(intent, slotIndex);
 
             mReceiverCount.incrementAndGet();
-            mContext.sendOrderedBroadcastAsUser(intent, UserHandle.ALL, receiverPermission, appOp,
-                    mReceiver, getHandler(), Activity.RESULT_OK, null, null);
+            mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
+                    intent, receiverPermission, appOp, mReceiver, getHandler(),
+                    Activity.RESULT_OK, null, null);
         }
 
         if (messageUri != null) {
@@ -265,6 +534,29 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             mContext.getContentResolver().update(CellBroadcasts.CONTENT_URI, cv,
                     CellBroadcasts._ID + "=?", new String[] {messageUri.getLastPathSegment()});
         }
+    }
+
+    /**
+     * Get the device resource based on SIM
+     *
+     * @param subId Subscription index
+     *
+     * @return The resource
+     */
+    public @NonNull Resources getResources(int subId) {
+        if (subId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID
+                || !SubscriptionManager.isValidSubscriptionId(subId)) {
+            return mContext.getResources();
+        }
+
+        if (mResourcesCache.containsKey(subId)) {
+            return mResourcesCache.get(subId);
+        }
+
+        Resources res = SubscriptionManager.getResourcesForSubId(mContext, subId);
+        mResourcesCache.put(subId, res);
+
+        return res;
     }
 
     @Override
@@ -377,8 +669,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         }
 
         private boolean hasPermission(String permission) {
-            return PermissionChecker.checkCallingOrSelfPermissionForDataDelivery(mContext,
-                    permission, null) == PERMISSION_GRANTED;
+            return mContext.checkPermission(permission, Process.myPid(), Process.myUid())
+                    == PackageManager.PERMISSION_GRANTED;
         }
     }
 }
