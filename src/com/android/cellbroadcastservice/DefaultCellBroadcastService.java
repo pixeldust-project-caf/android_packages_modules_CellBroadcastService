@@ -26,6 +26,8 @@ import android.telephony.TelephonyManager;
 import android.telephony.cdma.CdmaSmsCbProgramData;
 import android.util.Log;
 
+import com.android.internal.annotations.VisibleForTesting;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -76,7 +78,8 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
         } else {
             plmn = "";
         }
-        SmsCbMessage message = parseBroadcastSms(slotIndex, plmn, bearerData, serviceCategory);
+        SmsCbMessage message = parseBroadcastSms(getApplicationContext(), slotIndex, plmn,
+                bearerData, serviceCategory);
         if (message != null) {
             mCdmaCellBroadcastHandler.onCdmaCellBroadcastSms(message);
         }
@@ -90,7 +93,6 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
                 originatingAddress, callback);
     }
 
-
     /**
      * Parses a CDMA broadcast SMS
      *
@@ -99,9 +101,11 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
      * @param bearerData the bearerData of the SMS
      * @param serviceCategory the service category of the broadcast
      */
-    private SmsCbMessage parseBroadcastSms(int slotIndex, String plmn, byte[] bearerData,
+    @VisibleForTesting
+    public static SmsCbMessage parseBroadcastSms(Context context, int slotIndex, String plmn,
+            byte[] bearerData,
             int serviceCategory) {
-        BearerData bData = BearerData.decode(getApplicationContext(), bearerData, serviceCategory);
+        BearerData bData = BearerData.decode(context, bearerData, serviceCategory);
         if (bData == null) {
             Log.w(TAG, "BearerData.decode() returned null");
             return null;

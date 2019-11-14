@@ -201,7 +201,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                                 boolean airplaneModeOn = intent.getBooleanExtra("state", false);
                                 if (airplaneModeOn) {
                                     mLastAirplaneModeTime = System.currentTimeMillis();
-                                    log("Airplane mode on. Reset duplicate detection.");
+                                    log("Airplane mode on.");
                                 }
                                 break;
                             case ACTION_DUPLICATE_DETECTION:

@@ -66,6 +66,13 @@ public final class BearerData {
     public static final int LANGUAGE_HEBREW = 0x07;
 
     /**
+     * Supported message types for CDMA SMS messages
+     * (See 3GPP2 C.S0015-B, v2.0, table 4.5.1-1)
+     * Used for CdmaSmsCbTest.
+     */
+    public static final int MESSAGE_TYPE_DELIVER        = 0x01;
+
+    /**
      * 16-bit value indicating the message ID, which increments modulo 65536.
      * (Special rules apply for WAP-messages.)
      * (See 3GPP2 C.S0015-B, v2, 4.5.1)
