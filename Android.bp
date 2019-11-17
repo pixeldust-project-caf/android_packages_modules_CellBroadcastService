@@ -29,8 +29,9 @@ android_app {
      name: "CellBroadcastServiceModulePlatform",
      defaults: ["CellBroadcastServiceCommon"],
      certificate: "platform",
-     // CellBroadcastServicePlatformModule is a replacement for CellBroadcastServiceModule
-     overrides: ["CellBroadcastServiceModule"],
+     // CellBroadcastServicePlatformModule is a replacement for com.android.cellbroadcast apex
+     // which consists of CellBroadcastServiceModule
+     overrides: ["com.android.cellbroadcast"],
      manifest: "AndroidManifest_Platform.xml",
 }
 

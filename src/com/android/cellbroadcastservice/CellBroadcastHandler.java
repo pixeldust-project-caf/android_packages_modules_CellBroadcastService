@@ -325,10 +325,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         List<SmsCbMessage> cbMessages = new ArrayList<>();
 
         try (Cursor cursor = mContext.getContentResolver().query(CellBroadcasts.CONTENT_URI,
-                // TODO: QUERY_COLUMNS_FWK is a hidden API, since we are going to move
-                //  CellBroadcastProvider to this module we can define those COLUMNS in side
-                //  CellBroadcastProvider and reference from there.
-                CellBroadcasts.QUERY_COLUMNS_FWK,
+                CellBroadcastProvider.QUERY_COLUMNS,
                 where,
                 new String[] {Long.toString(dupCheckTime)},
                 null)) {

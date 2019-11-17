@@ -16,6 +16,8 @@
 
 package com.android.cellbroadcastservice;
 
+import static com.android.cellbroadcastservice.CellBroadcastProvider.QUERY_COLUMNS;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.doReturn;
@@ -64,30 +66,6 @@ public class CellBroadcastProviderTest extends TestCase {
     private static final String GEOMETRIES_COORDINATES = "polygon|0,0|0,1|1,1|1,0;circle|0,0|100";
 
     private static final String SELECT_BY_ID = CellBroadcasts._ID + "=?";
-
-    private static final String[] QUERY_COLUMNS = {
-            CellBroadcasts._ID,
-            CellBroadcasts.GEOGRAPHICAL_SCOPE,
-            CellBroadcasts.PLMN,
-            CellBroadcasts.LAC,
-            CellBroadcasts.CID,
-            CellBroadcasts.SERIAL_NUMBER,
-            CellBroadcasts.SERVICE_CATEGORY,
-            CellBroadcasts.LANGUAGE_CODE,
-            CellBroadcasts.MESSAGE_BODY,
-            CellBroadcasts.MESSAGE_FORMAT,
-            CellBroadcasts.MESSAGE_PRIORITY,
-            CellBroadcasts.ETWS_WARNING_TYPE,
-            CellBroadcasts.CMAS_MESSAGE_CLASS,
-            CellBroadcasts.CMAS_CATEGORY,
-            CellBroadcasts.CMAS_RESPONSE_TYPE,
-            CellBroadcasts.CMAS_SEVERITY,
-            CellBroadcasts.CMAS_URGENCY,
-            CellBroadcasts.CMAS_CERTAINTY,
-            CellBroadcasts.RECEIVED_TIME,
-            CellBroadcasts.MESSAGE_BROADCASTED,
-            CellBroadcasts.GEOMETRIES
-    };
 
     private CellBroadcastProviderTestable mCellBroadcastProviderTestable;
     private MockContextWithProvider mContext;
