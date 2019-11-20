@@ -19,8 +19,8 @@ package com.android.cellbroadcastservice;
 import android.annotation.NonNull;
 import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CbGeoUtils.LatLng;
+import android.telephony.Rlog;
 import android.text.TextUtils;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -231,7 +231,7 @@ public class CbGeoUtils {
                     geometries.add(new Polygon(vertices));
                     break;
                 default:
-                    Log.e(TAG, "Invalid geometry format " + geometryStr);
+                    Rlog.e(TAG, "Invalid geometry format " + geometryStr);
             }
         }
         return geometries;
@@ -284,7 +284,7 @@ public class CbGeoUtils {
             sb.append("|");
             sb.append(circle.getRadius());
         } else {
-            Log.e(TAG, "Unsupported geometry object " + geometry);
+            Rlog.e(TAG, "Unsupported geometry object " + geometry);
             return null;
         }
         return sb.toString();

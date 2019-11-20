@@ -51,12 +51,12 @@ import android.provider.Telephony;
 import android.provider.Telephony.CellBroadcasts;
 import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CbGeoUtils.LatLng;
+import android.telephony.Rlog;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.cdma.CdmaSmsCbProgramData;
 import android.text.TextUtils;
 import android.util.LocalLog;
-import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -614,7 +614,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
         private void onLocationUpdate(@Nullable Location location) {
             if (DBG) {
-                Log.d(TAG, "no location available");
+                Rlog.d(TAG, "no location available");
             }
 
             mLocationUpdateInProgress = false;
@@ -631,10 +631,10 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
         private void requestLocationUpdateInternal(@NonNull LocationUpdateCallback callback,
                 int maximumWaitTimeS) {
-            if (DBG) Log.d(TAG, "requestLocationUpdate");
+            if (DBG) Rlog.d(TAG, "requestLocationUpdate");
             if (!hasPermission(ACCESS_FINE_LOCATION) && !hasPermission(ACCESS_COARSE_LOCATION)) {
                 if (DBG) {
-                    Log.d(TAG, "Can't request location update because of no location permission");
+                    Rlog.d(TAG, "Can't request location update because of no location permission");
                 }
                 callback.onLocationUpdate(null);
                 return;
@@ -643,7 +643,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 for (String provider : LOCATION_PROVIDERS) {
                     if (!mLocationManager.isProviderEnabled(provider)) {
                         if (DBG) {
-                            Log.d(TAG, "provider " + provider + " not available");
+                            Rlog.d(TAG, "provider " + provider + " not available");
                         }
                         continue;
                     }

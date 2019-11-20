@@ -20,7 +20,7 @@ import android.content.Context;
 import android.content.pm.ProviderInfo;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.util.Log;
+import android.telephony.Rlog;
 
 import androidx.test.InstrumentationRegistry;
 
@@ -34,7 +34,7 @@ public class CellBroadcastProviderTestable extends CellBroadcastProvider {
     @Override
     public boolean onCreate() {
         // DO NOT call super.onCreate(), otherwise the permission checker will be override.
-        Log.d(TAG, "CellBroadcastProviderTestable onCreate");
+        Rlog.d(TAG, "CellBroadcastProviderTestable onCreate");
         mDbHelper = new InMemoryCellBroadcastProviderDbHelper();
         return true;
     }
@@ -53,7 +53,7 @@ public class CellBroadcastProviderTestable extends CellBroadcastProvider {
 
         @Override
         public void onCreate(SQLiteDatabase db) {
-            Log.d(TAG, "IN MEMORY DB CREATED");
+            Rlog.d(TAG, "IN MEMORY DB CREATED");
             db.execSQL(getStringForCellBroadcastTableCreation(CELL_BROADCASTS_TABLE_NAME));
         }
 

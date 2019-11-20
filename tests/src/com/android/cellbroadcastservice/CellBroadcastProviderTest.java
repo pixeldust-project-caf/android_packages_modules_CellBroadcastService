@@ -27,9 +27,9 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.Telephony.CellBroadcasts;
+import android.telephony.Rlog;
 import android.test.mock.MockContentResolver;
 import android.test.mock.MockContext;
-import android.util.Log;
 
 import com.android.cellbroadcastservice.CellBroadcastProvider.PermissionChecker;
 
@@ -324,7 +324,7 @@ public class CellBroadcastProviderTest extends TestCase {
 
         @Override
         public Object getSystemService(String name) {
-            Log.d(TAG, "getSystemService: returning null");
+            Rlog.d(TAG, "getSystemService: returning null");
             return null;
         }
 

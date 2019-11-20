@@ -1,2 +1,1 @@
 rule android.util.LocalLog* com.android.cellbroadcastservice.LocalLog@1
-rule android.util.Slog* com.android.cellbroadcastservice.Slog@1
