@@ -18,6 +18,7 @@ package com.android.cellbroadcastservice;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
@@ -135,6 +136,7 @@ public class CellBroadcastServiceTestBase extends TestCase {
             return null;
         }).when(mMockedContext).registerReceiver(
                 any(BroadcastReceiver.class), any(IntentFilter.class));
+        doReturn(true).when(mMockedLocationManager).isProviderEnabled(anyString());
     }
 
     protected void tearDown() throws Exception {

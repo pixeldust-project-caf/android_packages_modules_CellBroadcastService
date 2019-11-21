@@ -38,6 +38,7 @@ import android.location.LocationManager;
 import android.location.LocationRequest;
 import android.net.Uri;
 import android.os.Build;
+import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.Looper;
@@ -577,6 +578,12 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         private static final String TAG = LocationRequester.class.getSimpleName();
 
         /**
+         * Use as the default maximum wait time if the cell broadcast doesn't specify the value.
+         * Most of the location request should be responded within 30 seconds.
+         */
+        private static final int DEFAULT_MAXIMUM_WAIT_TIME_SEC = 30;
+
+        /**
          * Request location update from network or gps location provider. Network provider will be
          * used if available, otherwise use the gps provider.
          */
@@ -588,14 +595,16 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         private final Context mContext;
         private final Handler mLocationHandler;
 
-        private boolean mLocationUpdateInProgress;
+        private int mNumLocationUpdatesInProgress;
+
+        private final List<CancellationSignal> mCancellationSignals = new ArrayList<>();
 
         LocationRequester(Context context, LocationManager locationManager, Handler handler) {
             mLocationManager = locationManager;
             mCallbacks = new ArrayList<>();
             mContext = context;
             mLocationHandler = handler;
-            mLocationUpdateInProgress = false;
+            mNumLocationUpdatesInProgress = 0;
         }
 
         /**
@@ -613,20 +622,29 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         }
 
         private void onLocationUpdate(@Nullable Location location) {
-            if (DBG) {
-                Rlog.d(TAG, "no location available");
+            mNumLocationUpdatesInProgress--;
+
+            LatLng latLng = null;
+            if (location != null) {
+                Rlog.d(TAG, "Got location update");
+                latLng = new LatLng(location.getLatitude(), location.getLongitude());
+            } else if (mNumLocationUpdatesInProgress > 0) {
+                Rlog.d(TAG, "Still waiting for " + mNumLocationUpdatesInProgress
+                        + " more location updates.");
+                return;
+            } else {
+                Rlog.d(TAG, "Location is not available.");
             }
 
-            mLocationUpdateInProgress = false;
             for (LocationUpdateCallback callback : mCallbacks) {
-                if (location != null) {
-                    callback.onLocationUpdate(
-                            new LatLng(location.getLatitude(), location.getLongitude()));
-                } else {
-                    callback.onLocationUpdate(null);
-                }
+                callback.onLocationUpdate(latLng);
             }
             mCallbacks.clear();
+
+            mCancellationSignals.forEach(CancellationSignal::cancel);
+            mCancellationSignals.clear();
+
+            mNumLocationUpdatesInProgress = 0;
         }
 
         private void requestLocationUpdateInternal(@NonNull LocationUpdateCallback callback,
@@ -639,7 +657,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 callback.onLocationUpdate(null);
                 return;
             }
-            if (!mLocationUpdateInProgress) {
+            if (mNumLocationUpdatesInProgress == 0) {
                 for (String provider : LOCATION_PROVIDERS) {
                     if (!mLocationManager.isProviderEnabled(provider)) {
                         if (DBG) {
@@ -649,16 +667,19 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     }
                     LocationRequest request = LocationRequest.createFromDeprecatedProvider(provider,
                             0, 0, true);
-                    if (maximumWaitTimeS != SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
-                        request.setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+                    if (maximumWaitTimeS == SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
+                        maximumWaitTimeS = DEFAULT_MAXIMUM_WAIT_TIME_SEC;
                     }
-                    mLocationManager.getCurrentLocation(request, null,
+                    request.setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+
+                    CancellationSignal signal = new CancellationSignal();
+                    mCancellationSignals.add(signal);
+                    mLocationManager.getCurrentLocation(request, signal,
                             new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
-                    mLocationUpdateInProgress = true;
-                    break;
+                    mNumLocationUpdatesInProgress++;
                 }
             }
-            if (mLocationUpdateInProgress) {
+            if (mNumLocationUpdatesInProgress > 0) {
                 mCallbacks.add(callback);
             } else {
                 callback.onLocationUpdate(null);
