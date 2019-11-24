@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.cellbroadcastservice;
+package com.android.cellbroadcastservice.tests;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
@@ -34,6 +34,10 @@ import android.test.suitebuilder.annotation.SmallTest;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.text.format.DateUtils;
+
+import com.android.cellbroadcastservice.CellBroadcastHandler;
+import com.android.cellbroadcastservice.CellBroadcastProvider;
+import com.android.cellbroadcastservice.SmsCbConstants;
 
 import org.junit.After;
 import org.junit.Before;
@@ -57,7 +61,7 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     private class CellBroadcastContentProvider extends MockContentProvider {
         @Override
         public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
-                            String sortOrder) {
+                String sortOrder) {
 
             if (uri.compareTo(Telephony.CellBroadcasts.CONTENT_URI) == 0) {
                 MatrixCursor mc = new MatrixCursor(CellBroadcastProvider.QUERY_COLUMNS);
@@ -65,6 +69,7 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                 mc.addRow(new Object[]{
                         1,              // _ID
                         0,              // SLOT_INDEX
+                        1,              // SUB_ID
                         0,              // GEOGRAPHICAL_SCOPE
                         "311480",       // PLMN
                         0,              // LAC
@@ -115,7 +120,8 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         doReturn(mMockedResources).when(mMockedResourcesCache).get(anyInt());
         replaceInstance(CellBroadcastHandler.class, "mResourcesCache", mCellBroadcastHandler,
                 mMockedResourcesCache);
-        putResources(R.integer.message_expiration_time, (int) DateUtils.DAY_IN_MILLIS);
+        putResources(com.android.cellbroadcastservice.R.integer.message_expiration_time,
+                (int) DateUtils.DAY_IN_MILLIS);
     }
 
     @After
@@ -124,11 +130,11 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     }
 
     private SmsCbMessage createSmsCbMessage(int serialNumber, int serviceCategory,
-                                            String messageBody) {
+            String messageBody) {
         return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
                 0, serialNumber, new SmsCbLocation(),
                 serviceCategory, "en", messageBody, 3,
-                null, null, 0);
+                null, null, 0, 1);
     }
 
     @Test
@@ -155,7 +161,7 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     @Test
     @SmallTest
     public void testNotDuplicateMessageBodyDifferent() throws Exception {
-        putResources(R.bool.duplicate_compare_body, true);
+        putResources(com.android.cellbroadcastservice.R.bool.duplicate_compare_body, true);
         SmsCbMessage msg = createSmsCbMessage(1234, 4370, "msg");
         assertFalse(mCellBroadcastHandler.isDuplicate(msg));
     }

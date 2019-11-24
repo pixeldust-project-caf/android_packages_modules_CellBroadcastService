@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.cellbroadcastservice;
+package com.android.cellbroadcastservice.tests;
 
 import android.content.Context;
 import android.hardware.radio.V1_0.CdmaSmsMessage;
@@ -25,6 +25,8 @@ import android.telephony.cdma.CdmaSmsCbProgramData;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 
+import com.android.cellbroadcastservice.BearerData;
+import com.android.cellbroadcastservice.DefaultCellBroadcastService;
 import com.android.internal.telephony.GsmAlphabet;
 import com.android.internal.telephony.cdma.SmsMessage;
 import com.android.internal.telephony.cdma.SmsMessageConverter;
@@ -128,7 +130,7 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        putResources(R.bool.config_sms_utf8_support, false);
+        putResources(com.android.cellbroadcastservice.R.bool.config_sms_utf8_support, false);
     }
 
     @After

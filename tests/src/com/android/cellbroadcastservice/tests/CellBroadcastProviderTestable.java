@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.cellbroadcastservice;
+package com.android.cellbroadcastservice.tests;
 
 import android.content.Context;
 import android.content.pm.ProviderInfo;
@@ -23,6 +23,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.telephony.Rlog;
 
 import androidx.test.InstrumentationRegistry;
+
+import com.android.cellbroadcastservice.CellBroadcastProvider;
 
 public class CellBroadcastProviderTestable extends CellBroadcastProvider {
     private static final String TAG = CellBroadcastProviderTestable.class.getSimpleName();

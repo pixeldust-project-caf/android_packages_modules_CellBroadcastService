@@ -113,10 +113,18 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
         Rlog.d(TAG, "MT raw BearerData = " + toHexString(bearerData, 0, bearerData.length));
         SmsCbLocation location = new SmsCbLocation(plmn);
 
+        SubscriptionManager sm = (SubscriptionManager) context.getSystemService(
+                Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        int subId = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
+        int[] subIds = sm.getSubscriptionIds(slotIndex);
+        if (subIds != null && subIds.length > 0) {
+            subId = subIds[0];
+        }
+
         return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP2,
                 SmsCbMessage.GEOGRAPHICAL_SCOPE_PLMN_WIDE, bData.messageId, location,
                 serviceCategory, bData.getLanguage(), bData.userData.payloadStr,
-                bData.priority, null, bData.cmasWarningInfo, slotIndex);
+                bData.priority, null, bData.cmasWarningInfo, slotIndex, subId);
     }
 
     private static String toHexString(byte[] array, int offset, int length) {

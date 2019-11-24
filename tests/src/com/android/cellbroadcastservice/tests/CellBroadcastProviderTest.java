@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.cellbroadcastservice;
+package com.android.cellbroadcastservice.tests;
 
 import static com.android.cellbroadcastservice.CellBroadcastProvider.QUERY_COLUMNS;
 
@@ -31,6 +31,7 @@ import android.telephony.Rlog;
 import android.test.mock.MockContentResolver;
 import android.test.mock.MockContext;
 
+import com.android.cellbroadcastservice.CellBroadcastProvider;
 import com.android.cellbroadcastservice.CellBroadcastProvider.PermissionChecker;
 
 import junit.framework.TestCase;

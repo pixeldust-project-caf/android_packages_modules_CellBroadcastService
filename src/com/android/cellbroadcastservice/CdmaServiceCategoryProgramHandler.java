@@ -139,7 +139,7 @@ public final class CdmaServiceCategoryProgramHandler extends WakeLockStateMachin
 
         // TODO: move this resource and its overlays to the CellBroadcastService directory
         String[] pkgs = mContext.getResources().getStringArray(
-                com.android.internal.R.array.config_defaultCellBroadcastReceiverPkgs);
+                R.array.config_defaultCellBroadcastReceiverPkgs);
         mReceiverCount.addAndGet(pkgs.length);
         for (String pkg : pkgs) {
             intent.setPackage(pkg);

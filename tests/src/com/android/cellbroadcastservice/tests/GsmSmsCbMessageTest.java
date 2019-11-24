@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.cellbroadcastservice;
+package com.android.cellbroadcastservice.tests;
 
 import android.telephony.CbGeoUtils;
 import android.telephony.Rlog;
@@ -29,6 +29,10 @@ import androidx.test.InstrumentationRegistry;
 
 import com.android.cellbroadcastservice.CbGeoUtils.Circle;
 import com.android.cellbroadcastservice.CbGeoUtils.Polygon;
+import com.android.cellbroadcastservice.GsmSmsCbMessage;
+import com.android.cellbroadcastservice.R;
+import com.android.cellbroadcastservice.SmsCbConstants;
+import com.android.cellbroadcastservice.SmsCbHeader;
 
 import org.junit.After;
 import org.junit.Before;

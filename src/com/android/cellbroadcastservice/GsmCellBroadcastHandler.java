@@ -61,7 +61,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             new HashMap<>(4);
 
     @VisibleForTesting
-    protected GsmCellBroadcastHandler(Context context, Looper looper) {
+    public GsmCellBroadcastHandler(Context context, Looper looper) {
         super("GsmCellBroadcastHandler", context, looper);
     }
 

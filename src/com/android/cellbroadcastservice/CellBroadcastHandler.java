@@ -18,7 +18,6 @@ package com.android.cellbroadcastservice;
 
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
-import static android.provider.Settings.Secure.CMAS_ADDITIONAL_BROADCAST_PKG;
 
 import android.Manifest;
 import android.annotation.NonNull;
@@ -47,7 +46,6 @@ import android.os.Process;
 import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.UserHandle;
-import android.provider.Settings;
 import android.provider.Telephony;
 import android.provider.Telephony.CellBroadcasts;
 import android.telephony.CbGeoUtils.Geometry;
@@ -124,7 +122,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         this("CellBroadcastHandler", context, Looper.myLooper());
     }
 
-    protected CellBroadcastHandler(String debugTag, Context context, Looper looper) {
+    @VisibleForTesting
+    public CellBroadcastHandler(String debugTag, Context context, Looper looper) {
         super(debugTag, context, looper);
         mLocationRequester = new LocationRequester(
                 context,
@@ -485,26 +484,31 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             if (IS_DEBUGGABLE) {
                 // Send additional broadcast intent to the specified package. This is only for sl4a
                 // automation tests.
-                final String additionalPackage = Settings.Secure.getString(
-                        mContext.getContentResolver(), CMAS_ADDITIONAL_BROADCAST_PKG);
-                if (additionalPackage != null) {
+                String[] testPkgs = mContext.getResources().getStringArray(
+                        R.array.config_testCellBroadcastReceiverPkgs);
+                if (testPkgs != null) {
+                    mReceiverCount.addAndGet(testPkgs.length);
                     Intent additionalIntent = new Intent(intent);
-                    additionalIntent.setPackage(additionalPackage);
-                    mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                            additionalIntent, receiverPermission, appOp, null, getHandler(),
-                            Activity.RESULT_OK, null, null);
+                    for (String pkg : testPkgs) {
+                        additionalIntent.setPackage(pkg);
+                        mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
+                                additionalIntent, receiverPermission, appOp, mReceiver,
+                                getHandler(), Activity.RESULT_OK, null, null);
+                    }
                 }
             }
 
             String[] pkgs = mContext.getResources().getStringArray(
-                    com.android.internal.R.array.config_defaultCellBroadcastReceiverPkgs);
-            mReceiverCount.addAndGet(pkgs.length);
-            for (String pkg : pkgs) {
-                // Explicitly send the intent to all the configured cell broadcast receivers.
-                intent.setPackage(pkg);
-                mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                        intent, receiverPermission, appOp, null, getHandler(),
-                        Activity.RESULT_OK, null, null);
+                    R.array.config_defaultCellBroadcastReceiverPkgs);
+            if (pkgs != null) {
+                mReceiverCount.addAndGet(pkgs.length);
+                for (String pkg : pkgs) {
+                    // Explicitly send the intent to all the configured cell broadcast receivers.
+                    intent.setPackage(pkg);
+                    mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
+                            intent, receiverPermission, appOp, mReceiver, getHandler(),
+                            Activity.RESULT_OK, null, null);
+                }
             }
         } else {
             msg = "Dispatching SMS CB, SmsCbMessage is: " + message;

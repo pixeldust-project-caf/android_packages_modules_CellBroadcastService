@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.cellbroadcastservice;
+package com.android.cellbroadcastservice.tests;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -36,7 +36,6 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.provider.Telephony;
 import android.telephony.SmsCbCmasInfo;
-import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
@@ -44,6 +43,11 @@ import android.test.suitebuilder.annotation.SmallTest;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.text.format.DateUtils;
+
+import com.android.cellbroadcastservice.CellBroadcastHandler;
+import com.android.cellbroadcastservice.CellBroadcastProvider;
+import com.android.cellbroadcastservice.GsmCellBroadcastHandler;
+import com.android.cellbroadcastservice.SmsCbConstants;
 
 import org.junit.After;
 import org.junit.Before;
@@ -82,6 +86,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                 mc.addRow(new Object[]{
                         1,              // _ID
                         0,              // SLOT_INDEX
+                        1,              // SUB_ID
                         0,              // GEOGRAPHICAL_SCOPE
                         "311480",       // PLMN
                         0,              // LAC
@@ -154,22 +159,15 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         doReturn(mMockedResources).when(mMockedResourcesCache).get(anyInt());
         replaceInstance(CellBroadcastHandler.class, "mResourcesCache",
                 mGsmCellBroadcastHandler, mMockedResourcesCache);
-        putResources(R.integer.message_expiration_time, 86400000);
-        putResources(com.android.internal.R.array.config_defaultCellBroadcastReceiverPkgs,
+        putResources(com.android.cellbroadcastservice.R.integer.message_expiration_time, 86400000);
+        putResources(
+                com.android.cellbroadcastservice.R.array.config_defaultCellBroadcastReceiverPkgs,
                 new String[]{"fake.cellbroadcast.pkg"});
     }
 
     @After
     public void tearDown() throws Exception {
         super.tearDown();
-    }
-
-    private SmsCbMessage createSmsCbMessage(int serialNumber, int serviceCategory,
-                                            String messageBody) {
-        return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
-                0, serialNumber, new SmsCbLocation(),
-                serviceCategory, "en", messageBody, 3,
-                null, null, 0);
     }
 
     @Test
@@ -196,7 +194,8 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     @Test
     @SmallTest
     public void testAirplaneModeReset() {
-        putResources(R.bool.reset_on_power_cycle_or_airplane_mode, true);
+        putResources(com.android.cellbroadcastservice.R.bool.reset_on_power_cycle_or_airplane_mode,
+                true);
         Intent intent = new Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED);
         intent.putExtra("state", true);
         // Send fake airplane mode on event.
