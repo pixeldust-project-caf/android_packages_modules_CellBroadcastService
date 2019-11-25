@@ -31,6 +31,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.Process;
 import android.provider.Telephony.CellBroadcasts;
+import android.telephony.Rlog;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -98,6 +99,43 @@ public class CellBroadcastProvider extends ContentProvider {
     /** Content uri of this provider. */
     public static final Uri CONTENT_URI = Uri.parse("content://cellbroadcasts");
 
+    /**
+     * Local definition of the subId column name.
+     * The value should match CellBroadcasts.SUB_ID, but we don't use it here because it's hidden
+     * and deprecated, and slot_index should be enough in the future.
+     */
+    private static final String SUB_ID = "sub_id";
+
+    /**
+     * Local definition of the query columns for instantiating
+     * {@link android.telephony.SmsCbMessage} objects.
+     */
+    public static final String[] QUERY_COLUMNS = {
+        CellBroadcasts._ID,
+        CellBroadcasts.SLOT_INDEX,
+        CellBroadcasts.GEOGRAPHICAL_SCOPE,
+        CellBroadcasts.PLMN,
+        CellBroadcasts.LAC,
+        CellBroadcasts.CID,
+        CellBroadcasts.SERIAL_NUMBER,
+        CellBroadcasts.SERVICE_CATEGORY,
+        CellBroadcasts.LANGUAGE_CODE,
+        CellBroadcasts.MESSAGE_BODY,
+        CellBroadcasts.MESSAGE_FORMAT,
+        CellBroadcasts.MESSAGE_PRIORITY,
+        CellBroadcasts.ETWS_WARNING_TYPE,
+        CellBroadcasts.CMAS_MESSAGE_CLASS,
+        CellBroadcasts.CMAS_CATEGORY,
+        CellBroadcasts.CMAS_RESPONSE_TYPE,
+        CellBroadcasts.CMAS_SEVERITY,
+        CellBroadcasts.CMAS_URGENCY,
+        CellBroadcasts.CMAS_CERTAINTY,
+        CellBroadcasts.RECEIVED_TIME,
+        CellBroadcasts.MESSAGE_BROADCASTED,
+        CellBroadcasts.GEOMETRIES,
+        CellBroadcasts.MAXIMUM_WAIT_TIME
+    };
+
     @VisibleForTesting
     public PermissionChecker mPermissionChecker;
 
@@ -148,7 +186,7 @@ public class CellBroadcastProvider extends ContentProvider {
         checkReadPermission(uri);
 
         if (DBG) {
-            Log.d(TAG, "query:"
+            Rlog.d(TAG, "query:"
                     + " uri = " + uri
                     + " projection = " + Arrays.toString(projection)
                     + " selection = " + selection
@@ -188,7 +226,7 @@ public class CellBroadcastProvider extends ContentProvider {
         checkWritePermission();
 
         if (DBG) {
-            Log.d(TAG, "insert:"
+            Rlog.d(TAG, "insert:"
                     + " uri = " + uri
                     + " contentValue = " + values);
         }
@@ -203,7 +241,7 @@ public class CellBroadcastProvider extends ContentProvider {
                             .notifyChange(CONTENT_URI, null /* observer */);
                     return newUri;
                 } else {
-                    Log.e(TAG, "Insert record failed because of unknown reason, uri = " + uri);
+                    Rlog.e(TAG, "Insert record failed because of unknown reason, uri = " + uri);
                     return null;
                 }
             default:
@@ -217,7 +255,7 @@ public class CellBroadcastProvider extends ContentProvider {
         checkWritePermission();
 
         if (DBG) {
-            Log.d(TAG, "delete:"
+            Rlog.d(TAG, "delete:"
                     + " uri = " + uri
                     + " selection = " + selection
                     + " selectionArgs = " + Arrays.toString(selectionArgs));
@@ -238,7 +276,7 @@ public class CellBroadcastProvider extends ContentProvider {
         checkWritePermission();
 
         if (DBG) {
-            Log.d(TAG, "update:"
+            Rlog.d(TAG, "update:"
                     + " uri = " + uri
                     + " values = {" + values + "}"
                     + " selection = " + selection
@@ -270,7 +308,7 @@ public class CellBroadcastProvider extends ContentProvider {
     public static String getStringForCellBroadcastTableCreation(String tableName) {
         return "CREATE TABLE " + tableName + " ("
                 + CellBroadcasts._ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
-                + CellBroadcasts.SUB_ID + " INTEGER,"
+                + SUB_ID + " INTEGER,"
                 + CellBroadcasts.SLOT_INDEX + " INTEGER DEFAULT 0,"
                 + CellBroadcasts.GEOGRAPHICAL_SCOPE + " INTEGER,"
                 + CellBroadcasts.PLMN + " TEXT,"
@@ -345,12 +383,12 @@ public class CellBroadcastProvider extends ContentProvider {
         @Override
         public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             if (DBG) {
-                Log.d(TAG, "onUpgrade: oldV=" + oldVersion + " newV=" + newVersion);
+                Rlog.d(TAG, "onUpgrade: oldV=" + oldVersion + " newV=" + newVersion);
             }
             if (newVersion == 2) {
                 db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
                         + CellBroadcasts.SLOT_INDEX + " INTEGER DEFAULT 0;");
-                Log.d(TAG, "add slotIndex column");
+                Rlog.d(TAG, "add slotIndex column");
             }
         }
     }

@@ -72,7 +72,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
 
             if (uri.compareTo(Telephony.CellBroadcasts.CONTENT_URI) == 0
                     && Long.parseLong(selectionArgs[selectionArgs.length - 1]) <= receivedTime) {
-                MatrixCursor mc = new MatrixCursor(Telephony.CellBroadcasts.QUERY_COLUMNS_FWK);
+                MatrixCursor mc = new MatrixCursor(CellBroadcastProvider.QUERY_COLUMNS);
 
                 mc.addRow(new Object[]{
                         1,              // _ID

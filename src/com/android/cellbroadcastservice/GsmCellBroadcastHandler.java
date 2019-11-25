@@ -131,7 +131,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         ContentResolver resolver = mContext.getContentResolver();
         for (CellBroadcastIdentity identity : geoFencingTriggerMessage.cbIdentifiers) {
             try (Cursor cursor = resolver.query(CellBroadcasts.CONTENT_URI,
-                    CellBroadcasts.QUERY_COLUMNS_FWK,
+                    CellBroadcastProvider.QUERY_COLUMNS,
                     where,
                     new String[] { Integer.toString(identity.messageIdentifier),
                             Integer.toString(identity.serialNumber), MESSAGE_NOT_BROADCASTED,

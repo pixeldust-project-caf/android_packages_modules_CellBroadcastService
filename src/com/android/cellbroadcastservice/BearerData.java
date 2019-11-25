@@ -17,9 +17,9 @@
 package com.android.cellbroadcastservice;
 
 import android.content.Context;
+import android.telephony.Rlog;
 import android.telephony.SmsCbCmasInfo;
 import android.telephony.cdma.CdmaSmsCbProgramData;
-import android.util.Log;
 
 /**
  * An object to decode CDMA SMS bearer data.
@@ -194,9 +194,9 @@ public final class BearerData {
             inStream.skip(3);
         }
         if ((!decodeSuccess) || (paramBits > 0)) {
-            Log.d(LOG_TAG, "MESSAGE_IDENTIFIER decode " +
-                    (decodeSuccess ? "succeeded" : "failed") +
-                    " (extra bits = " + paramBits + ")");
+            Rlog.d(LOG_TAG, "MESSAGE_IDENTIFIER decode "
+                    + (decodeSuccess ? "succeeded" : "failed")
+                    + " (extra bits = " + paramBits + ")");
         }
         inStream.skip(paramBits);
         return decodeSuccess;
@@ -211,7 +211,7 @@ public final class BearerData {
             decodeSuccess = true;
             inStream.skip(paramBits);
         }
-        Log.d(LOG_TAG, "RESERVED bearer data subparameter " + subparamId + " decode "
+        Rlog.d(LOG_TAG, "RESERVED bearer data subparameter " + subparamId + " decode "
                 + (decodeSuccess ? "succeeded" : "failed") + " (param bits = " + paramBits + ")");
         if (!decodeSuccess) {
             throw new CodingException("RESERVED bearer data subparameter " + subparamId
@@ -263,7 +263,7 @@ public final class BearerData {
             if (maxNumFields < 0) {
                 throw new CodingException(charset + " decode failed: offset out of range");
             }
-            Log.e(LOG_TAG, charset + " decode error: offset = " + offset + " numFields = "
+            Rlog.e(LOG_TAG, charset + " decode error: offset = " + offset + " numFields = "
                     + numFields + " data.length = " + data.length + " maxNumFields = "
                     + maxNumFields);
             numFields = maxNumFields;
@@ -432,9 +432,9 @@ public final class BearerData {
             bData.language = inStream.read(8);
         }
         if ((!decodeSuccess) || (paramBits > 0)) {
-            Log.d(LOG_TAG, "LANGUAGE_INDICATOR decode " +
-                    (decodeSuccess ? "succeeded" : "failed") +
-                    " (extra bits = " + paramBits + ")");
+            Rlog.d(LOG_TAG, "LANGUAGE_INDICATOR decode "
+                    + (decodeSuccess ? "succeeded" : "failed")
+                    + " (extra bits = " + paramBits + ")");
         }
         inStream.skip(paramBits);
         return decodeSuccess;
@@ -452,9 +452,9 @@ public final class BearerData {
             inStream.skip(6);
         }
         if ((!decodeSuccess) || (paramBits > 0)) {
-            Log.d(LOG_TAG, "PRIORITY_INDICATOR decode " +
-                    (decodeSuccess ? "succeeded" : "failed") +
-                    " (extra bits = " + paramBits + ")");
+            Rlog.d(LOG_TAG, "PRIORITY_INDICATOR decode "
+                    + (decodeSuccess ? "succeeded" : "failed")
+                    + " (extra bits = " + paramBits + ")");
         }
         inStream.skip(paramBits);
         return decodeSuccess;
@@ -553,7 +553,7 @@ public final class BearerData {
                     break;
 
                 default:
-                    Log.w(LOG_TAG, "skipping unsupported CMAS record type " + recordType);
+                    Rlog.w(LOG_TAG, "skipping unsupported CMAS record type " + recordType);
                     inStream.skip(recordLen * 8);
                     break;
             }
@@ -631,9 +631,9 @@ public final class BearerData {
             }
             return bData;
         } catch (BitwiseInputStream.AccessException ex) {
-            Log.e(LOG_TAG, "BearerData decode failed: " + ex);
+            Rlog.e(LOG_TAG, "BearerData decode failed: " + ex);
         } catch (CodingException ex) {
-            Log.e(LOG_TAG, "BearerData decode failed: " + ex);
+            Rlog.e(LOG_TAG, "BearerData decode failed: " + ex);
         }
         return null;
     }

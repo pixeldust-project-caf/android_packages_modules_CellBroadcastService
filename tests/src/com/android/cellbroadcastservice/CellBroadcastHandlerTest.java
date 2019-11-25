@@ -60,7 +60,7 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                             String sortOrder) {
 
             if (uri.compareTo(Telephony.CellBroadcasts.CONTENT_URI) == 0) {
-                MatrixCursor mc = new MatrixCursor(Telephony.CellBroadcasts.QUERY_COLUMNS_FWK);
+                MatrixCursor mc = new MatrixCursor(CellBroadcastProvider.QUERY_COLUMNS);
 
                 mc.addRow(new Object[]{
                         1,              // _ID

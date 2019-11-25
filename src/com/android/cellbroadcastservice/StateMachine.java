@@ -21,6 +21,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
+import android.telephony.Rlog;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -1234,8 +1235,8 @@ public class StateMachine {
         /** @see StateMachine#transitionTo(IState) */
         private final void transitionTo(IState destState) {
             if (mTransitionInProgress) {
-                Log.wtf(mSm.mName, "transitionTo called while transition already in progress to " +
-                        mDestState + ", new target state=" + destState);
+                Log.wtf(mSm.mName, "transitionTo called while transition already in progress to "
+                        + mDestState + ", new target state=" + destState);
             }
             mDestState = (State) destState;
             if (mDbg) mSm.log("transitionTo: destState=" + mDestState.getName());
@@ -2123,7 +2124,7 @@ public class StateMachine {
      * @param s is string log
      */
     protected void log(String s) {
-        Log.d(mName, s);
+        Rlog.d(mName, s);
     }
 
     /**
@@ -2132,7 +2133,7 @@ public class StateMachine {
      * @param s is string log
      */
     protected void logd(String s) {
-        Log.d(mName, s);
+        Rlog.d(mName, s);
     }
 
     /**
@@ -2141,7 +2142,7 @@ public class StateMachine {
      * @param s is string log
      */
     protected void logv(String s) {
-        Log.v(mName, s);
+        Rlog.v(mName, s);
     }
 
     /**
@@ -2150,7 +2151,7 @@ public class StateMachine {
      * @param s is string log
      */
     protected void logi(String s) {
-        Log.i(mName, s);
+        Rlog.i(mName, s);
     }
 
     /**
@@ -2159,7 +2160,7 @@ public class StateMachine {
      * @param s is string log
      */
     protected void logw(String s) {
-        Log.w(mName, s);
+        Rlog.w(mName, s);
     }
 
     /**
@@ -2168,7 +2169,7 @@ public class StateMachine {
      * @param s is string log
      */
     protected void loge(String s) {
-        Log.e(mName, s);
+        Rlog.e(mName, s);
     }
 
     /**
@@ -2178,6 +2179,6 @@ public class StateMachine {
      * @param e is a Throwable which logs additional information.
      */
     protected void loge(String s, Throwable e) {
-        Log.e(mName, s, e);
+        Rlog.e(mName, s, e);
     }
 }
