@@ -390,18 +390,26 @@ public class CellBroadcastProvider extends ContentProvider {
     private class CellBroadcastPermissionChecker implements PermissionChecker {
         @Override
         public boolean hasWritePermission() {
-            // Only the phone and network statck process has the write permission to modify this
-            // provider.
-            return Binder.getCallingUid() == Process.PHONE_UID
-                    || Binder.getCallingUid() == Process.NETWORK_STACK_UID;
+            // Only the telephony system compontents e.g, Cellbroadcast service has the write
+            // permission to modify this provider.
+            int status = getContext().checkCallingOrSelfPermission(
+                    "android.permission.GRANT_RUNTIME_PERMISSIONS_TO_TELEPHONY_DEFAULTS");
+            if (status == PackageManager.PERMISSION_GRANTED) {
+                return true;
+            }
+            return false;
         }
 
         @Override
         public boolean hasReadPermission() {
-            // Only the phone and network stack process has the read permission to query data from
-            // this provider.
-            return Binder.getCallingUid() == Process.PHONE_UID
-                    || Binder.getCallingUid() == Process.NETWORK_STACK_UID;
+            // Only the telephony system compontents e.g, Cellbroadcast service has the read
+            // permission to access this provider.
+            int status = getContext().checkCallingOrSelfPermission(
+                    "android.permission.GRANT_RUNTIME_PERMISSIONS_TO_TELEPHONY_DEFAULTS");
+            if (status == PackageManager.PERMISSION_GRANTED) {
+                return true;
+            }
+            return false;
         }
 
         @Override
