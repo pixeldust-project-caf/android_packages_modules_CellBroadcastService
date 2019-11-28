@@ -112,7 +112,7 @@ public class GsmSmsCbMessage {
                     header.getSerialNumber(), location, header.getServiceCategory(), null,
                     getEtwsPrimaryMessage(context, header.getEtwsInfo().getWarningType()),
                     SmsCbMessage.MESSAGE_PRIORITY_EMERGENCY, header.getEtwsInfo(),
-                    header.getCmasInfo(), slotIndex, subId);
+                    header.getCmasInfo(), 0, null, receivedTimeMillis, slotIndex, subId);
         } else if (header.isUmtsFormat()) {
             // UMTS format has only 1 PDU
             byte[] pdu = pdus[0];
@@ -161,7 +161,8 @@ public class GsmSmsCbMessage {
             return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
                     header.getGeographicalScope(), header.getSerialNumber(), location,
                     header.getServiceCategory(), language, sb.toString(), priority,
-                    header.getEtwsInfo(), header.getCmasInfo(), slotIndex, subId);
+                    header.getEtwsInfo(), header.getCmasInfo(), 0, null, receivedTimeMillis,
+                    slotIndex, subId);
         }
     }
 

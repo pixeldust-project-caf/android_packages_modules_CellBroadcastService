@@ -20,8 +20,6 @@ import android.telephony.SmsCbCmasInfo;
 import android.telephony.SmsCbEtwsInfo;
 import android.telephony.SmsMessage;
 
-import dalvik.annotation.compat.UnsupportedAppUsage;
-
 import java.util.Arrays;
 import java.util.Locale;
 
@@ -111,7 +109,6 @@ public class SmsCbHeader {
     private final int mSerialNumber;
 
     /** The Message Identifier in 3GPP is the same as the Service Category in CDMA. */
-    @UnsupportedAppUsage
     private final int mMessageIdentifier;
 
     private final int mDataCodingScheme;
@@ -130,7 +127,6 @@ public class SmsCbHeader {
     /** CMAS warning notification info. */
     private final SmsCbCmasInfo mCmasInfo;
 
-    @UnsupportedAppUsage
     public SmsCbHeader(byte[] pdu) throws IllegalArgumentException {
         if (pdu == null || pdu.length < PDU_HEADER_LENGTH) {
             throw new IllegalArgumentException("Illegal PDU");
@@ -228,17 +224,14 @@ public class SmsCbHeader {
         }
     }
 
-    @UnsupportedAppUsage
     int getGeographicalScope() {
         return mGeographicalScope;
     }
 
-    @UnsupportedAppUsage
     int getSerialNumber() {
         return mSerialNumber;
     }
 
-    @UnsupportedAppUsage
     int getServiceCategory() {
         return mMessageIdentifier;
     }
@@ -251,12 +244,10 @@ public class SmsCbHeader {
         return mDataCodingSchemeStructedData;
     }
 
-    @UnsupportedAppUsage
     int getPageIndex() {
         return mPageIndex;
     }
 
-    @UnsupportedAppUsage
     int getNumberOfPages() {
         return mNrOfPages;
     }

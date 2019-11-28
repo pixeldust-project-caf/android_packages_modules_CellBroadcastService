@@ -18,10 +18,6 @@ package com.android.cellbroadcastservice;
 
 import android.util.SparseIntArray;
 
-import com.android.internal.util.HexDump;
-
-import dalvik.annotation.compat.UnsupportedAppUsage;
-
 public class UserData {
 
     /**
@@ -79,6 +75,12 @@ public class UserData {
         '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
         'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '{', '|', '}', '~'};
 
+
+    private static final char[] HEX_DIGITS =
+            {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+    private static final char[] HEX_LOWER_CASE_DIGITS =
+            {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
     /**
      * Character to use when forced to encode otherwise unencodable
      * characters, meaning those not in the respective ASCII or GSM
@@ -93,7 +95,6 @@ public class UserData {
     public static final int PRINTABLE_ASCII_MIN_INDEX = 0x20;
     public static final int ASCII_NL_INDEX = 0x0A;
     public static final int ASCII_CR_INDEX = 0x0D;
-    @UnsupportedAppUsage
     public static final SparseIntArray charToAscii = new SparseIntArray();
     static {
         for (int i = 0; i < ASCII_MAP.length; i++) {
@@ -103,7 +104,6 @@ public class UserData {
         charToAscii.put('\r', ASCII_CR_INDEX);
     }
 
-    @UnsupportedAppUsage
     public UserData() {
     }
 
@@ -117,15 +117,12 @@ public class UserData {
     /**
      * Contains the data header of the user data
      */
-    @UnsupportedAppUsage
     public SmsHeader userDataHeader;
 
     /**
      * Contains the data encoding type for the SMS message
      */
-    @UnsupportedAppUsage
     public int msgEncoding;
-    @UnsupportedAppUsage
     public boolean msgEncodingSet = false;
 
     public int msgType;
@@ -135,16 +132,13 @@ public class UserData {
      */
     public int paddingBits;
 
-    @UnsupportedAppUsage
     public int numFields;
 
     /**
      * Contains the user data of a SMS message
      * (See 3GPP2 C.S0015-B, v2, 4.5.2)
      */
-    @UnsupportedAppUsage
     public byte[] payload;
-    @UnsupportedAppUsage
     public String payloadStr;
 
     @Override
@@ -156,10 +150,25 @@ public class UserData {
         builder.append(", paddingBits=" + paddingBits);
         builder.append(", numFields=" + numFields);
         builder.append(", userDataHeader=" + userDataHeader);
-        builder.append(", payload='" + HexDump.toHexString(payload) + "'");
+        builder.append(", payload='" + toHexString(payload) + "'");
         builder.append(", payloadStr='" + payloadStr + "'");
         builder.append(" }");
         return builder.toString();
     }
 
+    private static String toHexString(byte[] array) {
+        return toHexString(array, 0, array.length, true);
+    }
+
+    private static String toHexString(byte[] array, int offset, int length, boolean upperCase) {
+        char[] digits = upperCase ? HEX_DIGITS : HEX_LOWER_CASE_DIGITS;
+        char[] buf = new char[length * 2];
+        int bufIndex = 0;
+        for (int i = offset; i < offset + length; i++) {
+            byte b = array[i];
+            buf[bufIndex++] = digits[(b >>> 4) & 0x0F];
+            buf[bufIndex++] = digits[b & 0x0F];
+        }
+        return new String(buf);
+    }
 }

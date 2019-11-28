@@ -282,7 +282,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             if (VDBG) log("header=" + header);
             TelephonyManager tm =
                     (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
-            tm.createForSubscriptionId(getSubIdForPhone(slotIndex));
+            tm.createForSubscriptionId(getSubIdForPhone(mContext, slotIndex));
             // TODO make a systemAPI for getNetworkOperatorForSlotIndex
             String plmn = tm.getSimOperator();
             int lac = -1;
@@ -309,7 +309,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
 
                 case SmsCbMessage.GEOGRAPHICAL_SCOPE_PLMN_WIDE:
                 default:
-                    location = new SmsCbLocation(plmn);
+                    location = new SmsCbLocation(plmn, -1, -1);
                     break;
             }
 
