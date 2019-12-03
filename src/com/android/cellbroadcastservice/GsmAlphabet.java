@@ -16,7 +16,6 @@
 
 package com.android.cellbroadcastservice;
 
-import android.annotation.UnsupportedAppUsage;
 import android.telephony.Rlog;
 import android.util.SparseIntArray;
 
@@ -67,18 +66,15 @@ public class GsmAlphabet {
     public static final int UDH_SEPTET_COST_CONCATENATED_MESSAGE = 6;
 
     /** Reverse mapping from Unicode characters to indexes into language tables. */
-    @UnsupportedAppUsage
     private static SparseIntArray[] sCharsToGsmTables;
 
     /** Reverse mapping from Unicode characters to indexes into language shift tables. */
-    @UnsupportedAppUsage
     private static SparseIntArray[] sCharsToShiftTables;
 
     /**
      * GSM default 7 bit alphabet plus national language locking shift character tables.
      * Comment lines above strings indicate the lower four bits of the table position.
      */
-    @UnsupportedAppUsage
     private static final String[] sLanguageTables = {
             /* 3GPP TS 23.038 V9.1.1 section 6.2.1 - GSM 7 bit Default Alphabet
              01.....23.....4.....5.....6.....7.....8.....9.....A.B.....C.....D.E.....F.....0....
@@ -391,7 +387,6 @@ public class GsmAlphabet {
     /**
      * GSM default extension table plus national language single shift character tables.
      */
-    @UnsupportedAppUsage
     private static final String[] sLanguageShiftTables = new String[]{
             /* 6.2.1.1 GSM 7 bit Default Alphabet Extension Table
              0123456789A.....BCDEF0123456789ABCDEF0123456789ABCDEF
@@ -638,7 +633,6 @@ public class GsmAlphabet {
      * @param lengthSeptets string length in septets, not bytes
      * @return String representation or null on decoding exception
      */
-    @UnsupportedAppUsage
     public static String gsm7BitPackedToString(byte[] pdu, int offset,
             int lengthSeptets) {
         return gsm7BitPackedToString(pdu, offset, lengthSeptets, 0, 0, 0);
@@ -660,7 +654,6 @@ public class GsmAlphabet {
      *                       GSM extension table
      * @return String representation or null on decoding exception
      */
-    @UnsupportedAppUsage
     public static String gsm7BitPackedToString(byte[] pdu, int offset,
             int lengthSeptets, int numPaddingBits, int languageTable, int shiftTable) {
         StringBuilder ret = new StringBuilder(lengthSeptets);

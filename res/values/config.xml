@@ -24,6 +24,10 @@
         <item>com.android.cellbroadcastreceiver</item>
     </string-array>
 
+    <!-- Package names of the test cell broadcast receivers, only used on debug builds -->
+    <string-array name="config_testCellBroadcastReceiverPkgs" translatable="false">
+    </string-array>
+
     <!-- The message expiration time in milliseconds for duplicate detection -->
     <integer name="message_expiration_time">86400000</integer>
 

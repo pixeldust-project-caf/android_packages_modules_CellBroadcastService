@@ -16,6 +16,7 @@ java_defaults {
         proguard_flags_files: ["proguard.flags"],
     },
     jarjar_rules: "cellbroadcast-jarjar-rules.txt",
+    plugins: ["java_api_finder"],
 }
 
 android_app {

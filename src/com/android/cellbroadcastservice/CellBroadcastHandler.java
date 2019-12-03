@@ -18,7 +18,6 @@ package com.android.cellbroadcastservice;
 
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
-import static android.provider.Settings.Secure.CMAS_ADDITIONAL_BROADCAST_PKG;
 
 import android.Manifest;
 import android.annotation.NonNull;
@@ -37,7 +36,7 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationRequest;
 import android.net.Uri;
-import android.os.Build;
+import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.Looper;
@@ -46,7 +45,6 @@ import android.os.Process;
 import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.UserHandle;
-import android.provider.Settings;
 import android.provider.Telephony;
 import android.provider.Telephony.CellBroadcasts;
 import android.telephony.CbGeoUtils.Geometry;
@@ -123,7 +121,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         this("CellBroadcastHandler", context, Looper.myLooper());
     }
 
-    protected CellBroadcastHandler(String debugTag, Context context, Looper looper) {
+    @VisibleForTesting
+    public CellBroadcastHandler(String debugTag, Context context, Looper looper) {
         super(debugTag, context, looper);
         mLocationRequester = new LocationRequester(
                 context,
@@ -189,7 +188,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED);
-        if (Build.IS_DEBUGGABLE) {
+        if (IS_DEBUGGABLE) {
             intentFilter.addAction(ACTION_DUPLICATE_DETECTION);
         }
         mContext.registerReceiver(
@@ -351,7 +350,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 // Check serial number if message is from the same carrier.
                 if (message.getSerialNumber() != messageToCheck.getSerialNumber()) {
                     // Not a dup. Check next one.
-                    log("Serial number check. Not a dup. " + messageToCheck);
                     continue;
                 }
 
@@ -360,7 +358,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         && message.getEtwsWarningInfo().isPrimary()
                         != messageToCheck.getEtwsWarningInfo().isPrimary()) {
                     // Not a dup. Check next one.
-                    log("ETWS primary check. Not a dup. " + messageToCheck);
                     continue;
                 }
 
@@ -374,7 +371,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                                 messageToCheck.getServiceCategory()),
                         message.getServiceCategory())) {
                     // Not a dup. Check next one.
-                    log("Service category check. Not a dup. " + messageToCheck);
                     continue;
                 }
 
@@ -439,9 +435,9 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
      * @param phoneId the phoneId to use
      * @return the associated sub id
      */
-    protected int getSubIdForPhone(int phoneId) {
+    protected static int getSubIdForPhone(Context context, int phoneId) {
         SubscriptionManager subMan =
-                (SubscriptionManager) mContext.getSystemService(
+                (SubscriptionManager) context.getSystemService(
                         Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         int[] subIds = subMan.getSubscriptionIds(phoneId);
         if (subIds != null) {
@@ -449,6 +445,19 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         } else {
             return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
         }
+    }
+
+    /**
+     * Put the phone ID and sub ID into an intent as extras.
+     */
+    public static void putPhoneIdAndSubIdExtra(Context context, Intent intent, int phoneId) {
+        int subId = getSubIdForPhone(context, phoneId);
+        if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            intent.putExtra("subscription", subId);
+            intent.putExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX, subId);
+        }
+        intent.putExtra("phone", phoneId);
+        intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, phoneId);
     }
 
     /**
@@ -473,37 +482,36 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             appOp = AppOpsManager.OPSTR_RECEIVE_EMERGENCY_BROADCAST;
 
             intent.putExtra(EXTRA_MESSAGE, message);
-            int subId = getSubIdForPhone(slotIndex);
-            if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                intent.putExtra("subscription", subId);
-                intent.putExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX, subId);
-            }
-            intent.putExtra("phone", slotIndex);
-            intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, slotIndex);
+            putPhoneIdAndSubIdExtra(mContext, intent, slotIndex);
 
             if (IS_DEBUGGABLE) {
                 // Send additional broadcast intent to the specified package. This is only for sl4a
                 // automation tests.
-                final String additionalPackage = Settings.Secure.getString(
-                        mContext.getContentResolver(), CMAS_ADDITIONAL_BROADCAST_PKG);
-                if (additionalPackage != null) {
+                String[] testPkgs = mContext.getResources().getStringArray(
+                        R.array.config_testCellBroadcastReceiverPkgs);
+                if (testPkgs != null) {
+                    mReceiverCount.addAndGet(testPkgs.length);
                     Intent additionalIntent = new Intent(intent);
-                    additionalIntent.setPackage(additionalPackage);
-                    mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                            additionalIntent, receiverPermission, appOp, null, getHandler(),
-                            Activity.RESULT_OK, null, null);
+                    for (String pkg : testPkgs) {
+                        additionalIntent.setPackage(pkg);
+                        mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
+                                additionalIntent, receiverPermission, appOp, mReceiver,
+                                getHandler(), Activity.RESULT_OK, null, null);
+                    }
                 }
             }
 
             String[] pkgs = mContext.getResources().getStringArray(
-                    com.android.internal.R.array.config_defaultCellBroadcastReceiverPkgs);
-            mReceiverCount.addAndGet(pkgs.length);
-            for (String pkg : pkgs) {
-                // Explicitly send the intent to all the configured cell broadcast receivers.
-                intent.setPackage(pkg);
-                mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                        intent, receiverPermission, appOp, null, getHandler(),
-                        Activity.RESULT_OK, null, null);
+                    R.array.config_defaultCellBroadcastReceiverPkgs);
+            if (pkgs != null) {
+                mReceiverCount.addAndGet(pkgs.length);
+                for (String pkg : pkgs) {
+                    // Explicitly send the intent to all the configured cell broadcast receivers.
+                    intent.setPackage(pkg);
+                    mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
+                            intent, receiverPermission, appOp, mReceiver, getHandler(),
+                            Activity.RESULT_OK, null, null);
+                }
             }
         } else {
             msg = "Dispatching SMS CB, SmsCbMessage is: " + message;
@@ -517,7 +525,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             appOp = AppOpsManager.OPSTR_RECEIVE_SMS;
 
             intent.putExtra(EXTRA_MESSAGE, message);
-            SubscriptionManager.putPhoneIdAndSubIdExtra(intent, slotIndex);
+            putPhoneIdAndSubIdExtra(mContext, intent, slotIndex);
 
             mReceiverCount.incrementAndGet();
             mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
@@ -577,6 +585,12 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         private static final String TAG = LocationRequester.class.getSimpleName();
 
         /**
+         * Use as the default maximum wait time if the cell broadcast doesn't specify the value.
+         * Most of the location request should be responded within 30 seconds.
+         */
+        private static final int DEFAULT_MAXIMUM_WAIT_TIME_SEC = 30;
+
+        /**
          * Request location update from network or gps location provider. Network provider will be
          * used if available, otherwise use the gps provider.
          */
@@ -588,14 +602,16 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         private final Context mContext;
         private final Handler mLocationHandler;
 
-        private boolean mLocationUpdateInProgress;
+        private int mNumLocationUpdatesInProgress;
+
+        private final List<CancellationSignal> mCancellationSignals = new ArrayList<>();
 
         LocationRequester(Context context, LocationManager locationManager, Handler handler) {
             mLocationManager = locationManager;
             mCallbacks = new ArrayList<>();
             mContext = context;
             mLocationHandler = handler;
-            mLocationUpdateInProgress = false;
+            mNumLocationUpdatesInProgress = 0;
         }
 
         /**
@@ -613,20 +629,29 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         }
 
         private void onLocationUpdate(@Nullable Location location) {
-            if (DBG) {
-                Rlog.d(TAG, "no location available");
+            mNumLocationUpdatesInProgress--;
+
+            LatLng latLng = null;
+            if (location != null) {
+                Rlog.d(TAG, "Got location update");
+                latLng = new LatLng(location.getLatitude(), location.getLongitude());
+            } else if (mNumLocationUpdatesInProgress > 0) {
+                Rlog.d(TAG, "Still waiting for " + mNumLocationUpdatesInProgress
+                        + " more location updates.");
+                return;
+            } else {
+                Rlog.d(TAG, "Location is not available.");
             }
 
-            mLocationUpdateInProgress = false;
             for (LocationUpdateCallback callback : mCallbacks) {
-                if (location != null) {
-                    callback.onLocationUpdate(
-                            new LatLng(location.getLatitude(), location.getLongitude()));
-                } else {
-                    callback.onLocationUpdate(null);
-                }
+                callback.onLocationUpdate(latLng);
             }
             mCallbacks.clear();
+
+            mCancellationSignals.forEach(CancellationSignal::cancel);
+            mCancellationSignals.clear();
+
+            mNumLocationUpdatesInProgress = 0;
         }
 
         private void requestLocationUpdateInternal(@NonNull LocationUpdateCallback callback,
@@ -639,7 +664,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 callback.onLocationUpdate(null);
                 return;
             }
-            if (!mLocationUpdateInProgress) {
+            if (mNumLocationUpdatesInProgress == 0) {
                 for (String provider : LOCATION_PROVIDERS) {
                     if (!mLocationManager.isProviderEnabled(provider)) {
                         if (DBG) {
@@ -649,16 +674,19 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     }
                     LocationRequest request = LocationRequest.createFromDeprecatedProvider(provider,
                             0, 0, true);
-                    if (maximumWaitTimeS != SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
-                        request.setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+                    if (maximumWaitTimeS == SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
+                        maximumWaitTimeS = DEFAULT_MAXIMUM_WAIT_TIME_SEC;
                     }
-                    mLocationManager.getCurrentLocation(request, null,
+                    request.setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+
+                    CancellationSignal signal = new CancellationSignal();
+                    mCancellationSignals.add(signal);
+                    mLocationManager.getCurrentLocation(request, signal,
                             new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
-                    mLocationUpdateInProgress = true;
-                    break;
+                    mNumLocationUpdatesInProgress++;
                 }
             }
-            if (mLocationUpdateInProgress) {
+            if (mNumLocationUpdatesInProgress > 0) {
                 mCallbacks.add(callback);
             } else {
                 callback.onLocationUpdate(null);

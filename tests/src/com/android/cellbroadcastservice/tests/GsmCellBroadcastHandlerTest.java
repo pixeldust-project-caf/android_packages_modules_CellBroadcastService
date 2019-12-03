@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.cellbroadcastservice;
+package com.android.cellbroadcastservice.tests;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.content.ContentValues;
@@ -28,12 +29,13 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.MatrixCursor;
+import android.location.Location;
+import android.location.LocationRequest;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.provider.Telephony;
 import android.telephony.SmsCbCmasInfo;
-import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
@@ -42,14 +44,21 @@ import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.text.format.DateUtils;
 
+import com.android.cellbroadcastservice.CellBroadcastHandler;
+import com.android.cellbroadcastservice.CellBroadcastProvider;
+import com.android.cellbroadcastservice.GsmCellBroadcastHandler;
+import com.android.cellbroadcastservice.SmsCbConstants;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 
 import java.util.Map;
+import java.util.function.Consumer;
 
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
@@ -77,6 +86,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                 mc.addRow(new Object[]{
                         1,              // _ID
                         0,              // SLOT_INDEX
+                        1,              // SUB_ID
                         0,              // GEOGRAPHICAL_SCOPE
                         "311480",       // PLMN
                         0,              // LAC
@@ -149,8 +159,9 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         doReturn(mMockedResources).when(mMockedResourcesCache).get(anyInt());
         replaceInstance(CellBroadcastHandler.class, "mResourcesCache",
                 mGsmCellBroadcastHandler, mMockedResourcesCache);
-        putResources(R.integer.message_expiration_time, 86400000);
-        putResources(com.android.internal.R.array.config_defaultCellBroadcastReceiverPkgs,
+        putResources(com.android.cellbroadcastservice.R.integer.message_expiration_time, 86400000);
+        putResources(
+                com.android.cellbroadcastservice.R.array.config_defaultCellBroadcastReceiverPkgs,
                 new String[]{"fake.cellbroadcast.pkg"});
     }
 
@@ -159,17 +170,10 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         super.tearDown();
     }
 
-    private SmsCbMessage createSmsCbMessage(int serialNumber, int serviceCategory,
-                                            String messageBody) {
-        return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
-                0, serialNumber, new SmsCbLocation(),
-                serviceCategory, "en", messageBody, 3,
-                null, null, 0);
-    }
-
     @Test
     @SmallTest
     public void testTriggerMessage() throws Exception {
+        doReturn(false).when(mMockedLocationManager).isProviderEnabled(anyString());
         final byte[] pdu = hexStringToBytes("0001113001010010C0111204D2");
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(0, pdu);
         mTestableLooper.processAllMessages();
@@ -190,7 +194,8 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     @Test
     @SmallTest
     public void testAirplaneModeReset() {
-        putResources(R.bool.reset_on_power_cycle_or_airplane_mode, true);
+        putResources(com.android.cellbroadcastservice.R.bool.reset_on_power_cycle_or_airplane_mode,
+                true);
         Intent intent = new Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED);
         intent.putExtra("state", true);
         // Send fake airplane mode on event.
@@ -199,6 +204,29 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         final byte[] pdu = hexStringToBytes("0001113001010010C0111204D2");
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(0, pdu);
         mTestableLooper.processAllMessages();
+
+        verify(mMockedContext, never()).sendOrderedBroadcast(any(), anyString(), anyString(),
+                any(), any(), anyInt(), any(), any());
+    }
+
+    @Test
+    @SmallTest
+    public void testGeofencingAlertOutOfPolygon() {
+        final byte[] pdu = hexStringToBytes("01111D7090010254747A0E4ACF416110B538A582DE6650906AA28"
+                + "2AE6979995D9ECF41C576597E2EBBC77950905D96D3D3EE33689A9FD3CB6D1708CA2E87E76550FAE"
+                + "C7ECBCB203ABA0C6A97E7F3F0B9EC02C15CB5769A5D0652A030FB1ECECF5D5076393C2F83C8E9B9B"
+                + "C7C0ECBC9203A3A3D07B5CBF379F85C06E16030580D660BB662B51A0D57CC3500000000000000000"
+                + "0000000000000000000000000000000000000000000000000003021002078B53B6CA4B84B53988A4"
+                + "B86B53958A4C2DB53B54A4C28B53B6CA4B840100CFF");
+        mGsmCellBroadcastHandler.onGsmCellBroadcastSms(0, pdu);
+        mTestableLooper.processAllMessages();
+
+        ArgumentCaptor<Consumer<Location>> captor = ArgumentCaptor.forClass(Consumer.class);
+        verify(mMockedLocationManager, times(2)).getCurrentLocation(
+                any(LocationRequest.class), any(), any(), captor.capture());
+
+        Consumer<Location> consumer = captor.getValue();
+        consumer.accept(Mockito.mock(Location.class));
 
         verify(mMockedContext, never()).sendOrderedBroadcast(any(), anyString(), anyString(),
                 any(), any(), anyInt(), any(), any());
