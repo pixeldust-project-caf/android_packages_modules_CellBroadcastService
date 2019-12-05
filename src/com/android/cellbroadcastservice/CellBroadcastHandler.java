@@ -49,6 +49,7 @@ import android.provider.Telephony;
 import android.provider.Telephony.CellBroadcasts;
 import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CbGeoUtils.LatLng;
+import android.telephony.CellBroadcastIntents;
 import android.telephony.Rlog;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
@@ -517,10 +518,9 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             msg = "Dispatching SMS CB, SmsCbMessage is: " + message;
             log(msg);
             mLocalLog.log(msg);
-            intent = new Intent(Telephony.Sms.Intents.SMS_CB_RECEIVED_ACTION);
             // Send implicit intent since there are various 3rd party carrier apps listen to
             // this intent.
-            intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+            intent = new Intent(Telephony.Sms.Intents.SMS_CB_RECEIVED_ACTION);
             receiverPermission = Manifest.permission.RECEIVE_SMS;
             appOp = AppOpsManager.OPSTR_RECEIVE_SMS;
 
@@ -528,9 +528,10 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             putPhoneIdAndSubIdExtra(mContext, intent, slotIndex);
 
             mReceiverCount.incrementAndGet();
-            mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                    intent, receiverPermission, appOp, mReceiver, getHandler(),
-                    Activity.RESULT_OK, null, null);
+            CellBroadcastIntents.sendOrderedBroadcastForBackgroundReceivers(
+                    mContext, UserHandle.ALL, intent,
+                    receiverPermission, appOp, mReceiver, getHandler(), Activity.RESULT_OK,
+                    null, null);
         }
 
         if (messageUri != null) {
