@@ -17,6 +17,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.android.cellbroadcastservice.tests">
 
+    <uses-permission android:name="android.permission.READ_CELL_BROADCASTS" />
+
     <application>
         <uses-library android:name="android.test.runner" />
     </application>

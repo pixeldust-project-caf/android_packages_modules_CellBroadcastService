@@ -111,7 +111,7 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
             return null;
         }
         Rlog.d(TAG, "MT raw BearerData = " + toHexString(bearerData, 0, bearerData.length));
-        SmsCbLocation location = new SmsCbLocation(plmn);
+        SmsCbLocation location = new SmsCbLocation(plmn, -1, -1);
 
         SubscriptionManager sm = (SubscriptionManager) context.getSystemService(
                 Context.TELEPHONY_SUBSCRIPTION_SERVICE);

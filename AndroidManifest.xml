@@ -54,6 +54,7 @@
                 android:authorities="cellbroadcasts"
                 android:exported="true"
                 android:singleUser="true"
+                android:readPermission="android.permission.READ_CELL_BROADCASTS"
                 android:multiprocess="false" />
     </application>
 </manifest>

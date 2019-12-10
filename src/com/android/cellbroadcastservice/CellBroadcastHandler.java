@@ -491,12 +491,11 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 String[] testPkgs = mContext.getResources().getStringArray(
                         R.array.config_testCellBroadcastReceiverPkgs);
                 if (testPkgs != null) {
-                    mReceiverCount.addAndGet(testPkgs.length);
                     Intent additionalIntent = new Intent(intent);
                     for (String pkg : testPkgs) {
                         additionalIntent.setPackage(pkg);
                         mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                                additionalIntent, receiverPermission, appOp, mReceiver,
+                                additionalIntent, receiverPermission, appOp, null,
                                 getHandler(), Activity.RESULT_OK, null, null);
                     }
                 }
