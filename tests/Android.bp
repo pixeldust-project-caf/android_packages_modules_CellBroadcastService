@@ -12,6 +12,7 @@ android_test {
         "telephony-common",
         "android.test.base",
         "android.test.mock",
+        "unsupportedappusage",
     ],
     srcs: ["src/**/*.java", ":cellbroadcast-shared-srcs"],
     platform_apis: true,
