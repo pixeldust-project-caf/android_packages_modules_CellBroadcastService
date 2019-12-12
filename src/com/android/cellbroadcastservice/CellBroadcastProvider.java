@@ -16,7 +16,6 @@
 
 package com.android.cellbroadcastservice;
 
-import android.app.AppOpsManager;
 import android.content.ContentProvider;
 import android.content.ContentUris;
 import android.content.ContentValues;
@@ -153,7 +152,6 @@ public class CellBroadcastProvider extends ContentProvider {
     public boolean onCreate() {
         mDbHelper = new CellBroadcastDatabaseHelper(getContext());
         mPermissionChecker = new CellBroadcastPermissionChecker();
-        setAppOps(AppOpsManager.OP_READ_CELL_BROADCASTS, AppOpsManager.OP_NONE);
         return true;
     }
 
