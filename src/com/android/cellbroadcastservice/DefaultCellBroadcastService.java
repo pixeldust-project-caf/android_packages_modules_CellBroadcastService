@@ -19,12 +19,12 @@ package com.android.cellbroadcastservice;
 import android.content.Context;
 import android.os.Bundle;
 import android.telephony.CellBroadcastService;
-import android.telephony.Rlog;
 import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.telephony.cdma.CdmaSmsCbProgramData;
+import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -59,13 +59,13 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
 
     @Override
     public void onGsmCellBroadcastSms(int slotIndex, byte[] message) {
-        Rlog.d(TAG, "onGsmCellBroadcastSms received message on slotId=" + slotIndex);
+        Log.d(TAG, "onGsmCellBroadcastSms received message on slotId=" + slotIndex);
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(slotIndex, message);
     }
 
     @Override
     public void onCdmaCellBroadcastSms(int slotIndex, byte[] bearerData, int serviceCategory) {
-        Rlog.d(TAG, "onCdmaCellBroadcastSms received message on slotId=" + slotIndex);
+        Log.d(TAG, "onCdmaCellBroadcastSms received message on slotId=" + slotIndex);
         int[] subIds =
                 ((SubscriptionManager) getSystemService(
                         Context.TELEPHONY_SUBSCRIPTION_SERVICE)).getSubscriptionIds(slotIndex);
@@ -88,7 +88,7 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
     @Override
     public void onCdmaScpMessage(int slotIndex, List<CdmaSmsCbProgramData> programData,
             String originatingAddress, Consumer<Bundle> callback) {
-        Rlog.d(TAG, "onCdmaScpMessage received message on slotId=" + slotIndex);
+        Log.d(TAG, "onCdmaScpMessage received message on slotId=" + slotIndex);
         mCdmaScpHandler.onCdmaScpMessage(slotIndex, new ArrayList<>(programData),
                 originatingAddress, callback);
     }
@@ -107,10 +107,10 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
             int serviceCategory) {
         BearerData bData = BearerData.decode(context, bearerData, serviceCategory);
         if (bData == null) {
-            Rlog.w(TAG, "BearerData.decode() returned null");
+            Log.w(TAG, "BearerData.decode() returned null");
             return null;
         }
-        Rlog.d(TAG, "MT raw BearerData = " + toHexString(bearerData, 0, bearerData.length));
+        Log.d(TAG, "MT raw BearerData = " + toHexString(bearerData, 0, bearerData.length));
         SmsCbLocation location = new SmsCbLocation(plmn, -1, -1);
 
         SubscriptionManager sm = (SubscriptionManager) context.getSystemService(
