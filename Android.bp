@@ -47,6 +47,16 @@ filegroup {
     ],
 }
 
+// used to share src with cellbroadcastreceiver test app
+filegroup {
+    name: "cellbroadcast-util-shared-srcs",
+    srcs: [
+        "src/com/android/cellbroadcastservice/GsmAlphabet.java",
+        "src/com/android/cellbroadcastservice/CbGeoUtils.java",
+        "src/com/android/cellbroadcastservice/SmsCbHeader.java",
+    ],
+}
+
 // used to share src with unit test app
 filegroup {
     name: "cellbroadcast-shared-srcs",
