@@ -8,10 +8,9 @@ java_defaults {
       ":framework-cellbroadcast-shared-srcs",
     ],
     libs: [
-        "telephony-common",
         "unsupportedappusage",
     ],
-    platform_apis: true,
+    sdk_version: "system_current",
     certificate: "platform",
     privileged: true,
     resource_dirs: ["res"],
