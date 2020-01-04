@@ -118,6 +118,25 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
      */
     private final Map<Integer, Integer> mServiceCategoryCrossRATMap;
 
+    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (intent.getAction()) {
+                case Intent.ACTION_AIRPLANE_MODE_CHANGED:
+                    boolean airplaneModeOn = intent.getBooleanExtra("state", false);
+                    if (airplaneModeOn) {
+                        mLastAirplaneModeTime = System.currentTimeMillis();
+                        log("Airplane mode on.");
+                    }
+                    break;
+                case ACTION_DUPLICATE_DETECTION:
+                    mEnableDuplicateDetection = intent.getBooleanExtra(EXTRA_ENABLE,
+                            true);
+                    break;
+            }
+        }
+    };
+
     private CellBroadcastHandler(Context context) {
         this("CellBroadcastHandler", context, Looper.myLooper());
     }
@@ -192,26 +211,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         if (IS_DEBUGGABLE) {
             intentFilter.addAction(ACTION_DUPLICATE_DETECTION);
         }
-        mContext.registerReceiver(
-                new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context context, Intent intent) {
-                        switch (intent.getAction()) {
-                            case Intent.ACTION_AIRPLANE_MODE_CHANGED:
-                                boolean airplaneModeOn = intent.getBooleanExtra("state", false);
-                                if (airplaneModeOn) {
-                                    mLastAirplaneModeTime = System.currentTimeMillis();
-                                    log("Airplane mode on.");
-                                }
-                                break;
-                            case ACTION_DUPLICATE_DETECTION:
-                                mEnableDuplicateDetection = intent.getBooleanExtra(EXTRA_ENABLE,
-                                        true);
-                                break;
-                        }
 
-                    }
-                }, intentFilter);
+        mContext.registerReceiver(mReceiver, intentFilter);
+    }
+
+    public void cleanup() {
+        if (DBG) log("CellBroadcastHandler cleanup");
+        mContext.unregisterReceiver(mReceiver);
     }
 
     /**

@@ -58,6 +58,13 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
     }
 
     @Override
+    public void onDestroy() {
+        mGsmCellBroadcastHandler.cleanup();
+        mCdmaCellBroadcastHandler.cleanup();
+        super.onDestroy();
+    }
+
+    @Override
     public void onGsmCellBroadcastSms(int slotIndex, byte[] message) {
         Log.d(TAG, "onGsmCellBroadcastSms received message on slotId=" + slotIndex);
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(slotIndex, message);
