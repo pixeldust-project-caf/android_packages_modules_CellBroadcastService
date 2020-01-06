@@ -143,7 +143,7 @@ public final class CdmaServiceCategoryProgramHandler extends WakeLockStateMachin
         for (String pkg : pkgs) {
             intent.setPackage(pkg);
             mContext.sendOrderedBroadcast(intent, Manifest.permission.RECEIVE_SMS,
-                    AppOpsManager.OP_RECEIVE_SMS, mScpResultsReceiver,
+                    AppOpsManager.OPSTR_RECEIVE_SMS, mScpResultsReceiver,
                     getHandler(), Activity.RESULT_OK, null, null);
             mScpCallback.add(callback);
         }

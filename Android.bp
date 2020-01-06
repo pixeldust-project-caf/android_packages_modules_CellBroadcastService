@@ -8,10 +8,9 @@ java_defaults {
       ":framework-cellbroadcast-shared-srcs",
     ],
     libs: [
-        "telephony-common",
         "unsupportedappusage",
     ],
-    platform_apis: true,
+    sdk_version: "system_current",
     certificate: "platform",
     privileged: true,
     resource_dirs: ["res"],
@@ -44,6 +43,16 @@ filegroup {
     name: "cellbroadcast-constants-shared-srcs",
     srcs: [
         "src/com/android/cellbroadcastservice/SmsCbConstants.java",
+    ],
+}
+
+// used to share src with cellbroadcastreceiver test app
+filegroup {
+    name: "cellbroadcast-util-shared-srcs",
+    srcs: [
+        "src/com/android/cellbroadcastservice/GsmAlphabet.java",
+        "src/com/android/cellbroadcastservice/CbGeoUtils.java",
+        "src/com/android/cellbroadcastservice/SmsCbHeader.java",
     ],
 }
 

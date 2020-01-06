@@ -50,12 +50,12 @@ import android.provider.Telephony.CellBroadcasts;
 import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CbGeoUtils.LatLng;
 import android.telephony.CellBroadcastIntents;
-import android.telephony.Rlog;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.cdma.CdmaSmsCbProgramData;
 import android.text.TextUtils;
 import android.util.LocalLog;
+import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -117,6 +117,25 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
      * service category.
      */
     private final Map<Integer, Integer> mServiceCategoryCrossRATMap;
+
+    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (intent.getAction()) {
+                case Intent.ACTION_AIRPLANE_MODE_CHANGED:
+                    boolean airplaneModeOn = intent.getBooleanExtra("state", false);
+                    if (airplaneModeOn) {
+                        mLastAirplaneModeTime = System.currentTimeMillis();
+                        log("Airplane mode on.");
+                    }
+                    break;
+                case ACTION_DUPLICATE_DETECTION:
+                    mEnableDuplicateDetection = intent.getBooleanExtra(EXTRA_ENABLE,
+                            true);
+                    break;
+            }
+        }
+    };
 
     private CellBroadcastHandler(Context context) {
         this("CellBroadcastHandler", context, Looper.myLooper());
@@ -192,26 +211,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         if (IS_DEBUGGABLE) {
             intentFilter.addAction(ACTION_DUPLICATE_DETECTION);
         }
-        mContext.registerReceiver(
-                new BroadcastReceiver() {
-                    @Override
-                    public void onReceive(Context context, Intent intent) {
-                        switch (intent.getAction()) {
-                            case Intent.ACTION_AIRPLANE_MODE_CHANGED:
-                                boolean airplaneModeOn = intent.getBooleanExtra("state", false);
-                                if (airplaneModeOn) {
-                                    mLastAirplaneModeTime = System.currentTimeMillis();
-                                    log("Airplane mode on.");
-                                }
-                                break;
-                            case ACTION_DUPLICATE_DETECTION:
-                                mEnableDuplicateDetection = intent.getBooleanExtra(EXTRA_ENABLE,
-                                        true);
-                                break;
-                        }
 
-                    }
-                }, intentFilter);
+        mContext.registerReceiver(mReceiver, intentFilter);
+    }
+
+    public void cleanup() {
+        if (DBG) log("CellBroadcastHandler cleanup");
+        mContext.unregisterReceiver(mReceiver);
     }
 
     /**
@@ -633,14 +639,14 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
             LatLng latLng = null;
             if (location != null) {
-                Rlog.d(TAG, "Got location update");
+                Log.d(TAG, "Got location update");
                 latLng = new LatLng(location.getLatitude(), location.getLongitude());
             } else if (mNumLocationUpdatesInProgress > 0) {
-                Rlog.d(TAG, "Still waiting for " + mNumLocationUpdatesInProgress
+                Log.d(TAG, "Still waiting for " + mNumLocationUpdatesInProgress
                         + " more location updates.");
                 return;
             } else {
-                Rlog.d(TAG, "Location is not available.");
+                Log.d(TAG, "Location is not available.");
             }
 
             for (LocationUpdateCallback callback : mCallbacks) {
@@ -656,10 +662,10 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
         private void requestLocationUpdateInternal(@NonNull LocationUpdateCallback callback,
                 int maximumWaitTimeS) {
-            if (DBG) Rlog.d(TAG, "requestLocationUpdate");
+            if (DBG) Log.d(TAG, "requestLocationUpdate");
             if (!hasPermission(ACCESS_FINE_LOCATION) && !hasPermission(ACCESS_COARSE_LOCATION)) {
                 if (DBG) {
-                    Rlog.d(TAG, "Can't request location update because of no location permission");
+                    Log.d(TAG, "Can't request location update because of no location permission");
                 }
                 callback.onLocationUpdate(null);
                 return;
@@ -668,7 +674,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 for (String provider : LOCATION_PROVIDERS) {
                     if (!mLocationManager.isProviderEnabled(provider)) {
                         if (DBG) {
-                            Rlog.d(TAG, "provider " + provider + " not available");
+                            Log.d(TAG, "provider " + provider + " not available");
                         }
                         continue;
                     }

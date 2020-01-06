@@ -17,13 +17,13 @@
 package com.android.cellbroadcastservice.tests;
 
 import android.telephony.CbGeoUtils;
-import android.telephony.Rlog;
 import android.telephony.SmsCbCmasInfo;
 import android.telephony.SmsCbEtwsInfo;
 import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
+import android.util.Log;
 
 import androidx.test.InstrumentationRegistry;
 
@@ -77,27 +77,27 @@ public class GsmSmsCbMessageTest extends CellBroadcastServiceTestBase {
 
         String message = GsmSmsCbMessage.getEtwsPrimaryMessage(mMockedContext,
                 SmsCbEtwsInfo.ETWS_WARNING_TYPE_EARTHQUAKE);
-        Rlog.d("GsmSmsCbMessageTest", "earthquake message=" + message);
+        Log.d("GsmSmsCbMessageTest", "earthquake message=" + message);
         assertEquals(testMessage1, message);
 
         message = GsmSmsCbMessage.getEtwsPrimaryMessage(mMockedContext,
                 SmsCbEtwsInfo.ETWS_WARNING_TYPE_TSUNAMI);
-        Rlog.d("GsmSmsCbMessageTest", "tsunami message=" + message);
+        Log.d("GsmSmsCbMessageTest", "tsunami message=" + message);
         assertEquals(testMessage2, message);
 
         message = GsmSmsCbMessage.getEtwsPrimaryMessage(mMockedContext,
                 SmsCbEtwsInfo.ETWS_WARNING_TYPE_EARTHQUAKE_AND_TSUNAMI);
-        Rlog.d("GsmSmsCbMessageTest", "earthquake and tsunami message=" + message);
+        Log.d("GsmSmsCbMessageTest", "earthquake and tsunami message=" + message);
         assertEquals(testMessage3, message);
 
         message = GsmSmsCbMessage.getEtwsPrimaryMessage(mMockedContext,
                 SmsCbEtwsInfo.ETWS_WARNING_TYPE_TEST_MESSAGE);
-        Rlog.d("GsmSmsCbMessageTest", "test message=" + message);
+        Log.d("GsmSmsCbMessageTest", "test message=" + message);
         assertEquals(testMessage4, message);
 
         message = GsmSmsCbMessage.getEtwsPrimaryMessage(mMockedContext,
                 SmsCbEtwsInfo.ETWS_WARNING_TYPE_OTHER_EMERGENCY);
-        Rlog.d("GsmSmsCbMessageTest", "others message=" + message);
+        Log.d("GsmSmsCbMessageTest", "others message=" + message);
         assertEquals(testMessage5, message);
     }
 
@@ -126,7 +126,7 @@ public class GsmSmsCbMessageTest extends CellBroadcastServiceTestBase {
         SmsCbMessage msg = GsmSmsCbMessage.createSmsCbMessage(mMockedContext, header, null, pdus,
                 0);
 
-        Rlog.d(TAG, "msg=" + msg);
+        Log.d(TAG, "msg=" + msg);
 
         assertEquals(SmsCbMessage.GEOGRAPHICAL_SCOPE_CELL_WIDE_IMMEDIATE,
                 msg.getGeographicalScope());
@@ -171,7 +171,7 @@ public class GsmSmsCbMessageTest extends CellBroadcastServiceTestBase {
         GsmSmsCbMessage.GeoFencingTriggerMessage triggerMessage =
                 GsmSmsCbMessage.createGeoFencingTriggerMessage(pdu);
 
-        Rlog.d(TAG, "trigger message=" + triggerMessage);
+        Log.d(TAG, "trigger message=" + triggerMessage);
 
         assertEquals(1, triggerMessage.type);
         assertEquals(1, triggerMessage.cbIdentifiers.size());
@@ -1013,7 +1013,7 @@ public class GsmSmsCbMessageTest extends CellBroadcastServiceTestBase {
     @Test
     public void testEtwsMessageNormal() {
         SmsCbMessage msg = createFromPdu(etwsMessageNormal);
-        Rlog.d(TAG, msg.toString());
+        Log.d(TAG, msg.toString());
         assertEquals("GS mismatch", 0, msg.getGeographicalScope());
         assertEquals("serial number mismatch", 0, msg.getSerialNumber());
         assertEquals("message ID mismatch", 0x1100, msg.getServiceCategory());
@@ -1024,7 +1024,7 @@ public class GsmSmsCbMessageTest extends CellBroadcastServiceTestBase {
     @Test
     public void testEtwsMessageCancel() {
         SmsCbMessage msg = createFromPdu(etwsMessageCancel);
-        Rlog.d(TAG, msg.toString());
+        Log.d(TAG, msg.toString());
         assertEquals("GS mismatch", 0, msg.getGeographicalScope());
         assertEquals("serial number mismatch", 0, msg.getSerialNumber());
         assertEquals("message ID mismatch", 0x1100, msg.getServiceCategory());
@@ -1035,7 +1035,7 @@ public class GsmSmsCbMessageTest extends CellBroadcastServiceTestBase {
     @Test
     public void testEtwsMessageTest() {
         SmsCbMessage msg = createFromPdu(etwsMessageTest);
-        Rlog.d(TAG, msg.toString());
+        Log.d(TAG, msg.toString());
         assertEquals("GS mismatch", 0, msg.getGeographicalScope());
         assertEquals("serial number mismatch", 0, msg.getSerialNumber());
         assertEquals("message ID mismatch", 0x1103, msg.getServiceCategory());
@@ -1057,7 +1057,7 @@ public class GsmSmsCbMessageTest extends CellBroadcastServiceTestBase {
                 // this should return a SmsCbMessage object or null for invalid data
                 SmsCbMessage msg = createFromPdu(data);
             } catch (Exception e) {
-                Rlog.d(TAG, "exception thrown", e);
+                Log.d(TAG, "exception thrown", e);
                 fail("Exception in decoder at run " + run + " length " + len + ": " + e);
             }
         }

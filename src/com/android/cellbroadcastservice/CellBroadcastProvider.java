@@ -27,10 +27,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
 import android.net.Uri;
-import android.os.Binder;
-import android.os.Process;
 import android.provider.Telephony.CellBroadcasts;
-import android.telephony.Rlog;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -178,7 +175,7 @@ public class CellBroadcastProvider extends ContentProvider {
         checkReadPermission(uri);
 
         if (DBG) {
-            Rlog.d(TAG, "query:"
+            Log.d(TAG, "query:"
                     + " uri = " + uri
                     + " projection = " + Arrays.toString(projection)
                     + " selection = " + selection
@@ -218,7 +215,7 @@ public class CellBroadcastProvider extends ContentProvider {
         checkWritePermission();
 
         if (DBG) {
-            Rlog.d(TAG, "insert:"
+            Log.d(TAG, "insert:"
                     + " uri = " + uri
                     + " contentValue = " + values);
         }
@@ -233,7 +230,7 @@ public class CellBroadcastProvider extends ContentProvider {
                             .notifyChange(CONTENT_URI, null /* observer */);
                     return newUri;
                 } else {
-                    Rlog.e(TAG, "Insert record failed because of unknown reason, uri = " + uri);
+                    Log.e(TAG, "Insert record failed because of unknown reason, uri = " + uri);
                     return null;
                 }
             default:
@@ -247,7 +244,7 @@ public class CellBroadcastProvider extends ContentProvider {
         checkWritePermission();
 
         if (DBG) {
-            Rlog.d(TAG, "delete:"
+            Log.d(TAG, "delete:"
                     + " uri = " + uri
                     + " selection = " + selection
                     + " selectionArgs = " + Arrays.toString(selectionArgs));
@@ -268,7 +265,7 @@ public class CellBroadcastProvider extends ContentProvider {
         checkWritePermission();
 
         if (DBG) {
-            Rlog.d(TAG, "update:"
+            Log.d(TAG, "update:"
                     + " uri = " + uri
                     + " values = {" + values + "}"
                     + " selection = " + selection
@@ -375,12 +372,12 @@ public class CellBroadcastProvider extends ContentProvider {
         @Override
         public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             if (DBG) {
-                Rlog.d(TAG, "onUpgrade: oldV=" + oldVersion + " newV=" + newVersion);
+                Log.d(TAG, "onUpgrade: oldV=" + oldVersion + " newV=" + newVersion);
             }
             if (oldVersion < 2) {
                 db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
                         + CellBroadcasts.SLOT_INDEX + " INTEGER DEFAULT 0;");
-                Rlog.d(TAG, "add slotIndex column");
+                Log.d(TAG, "add slotIndex column");
             }
         }
     }

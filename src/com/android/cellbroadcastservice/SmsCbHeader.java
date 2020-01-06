@@ -20,6 +20,8 @@ import android.telephony.SmsCbCmasInfo;
 import android.telephony.SmsCbEtwsInfo;
 import android.telephony.SmsMessage;
 
+import com.android.internal.annotations.VisibleForTesting;
+
 import java.util.Arrays;
 import java.util.Locale;
 
@@ -71,7 +73,7 @@ public class SmsCbHeader {
     /**
      * Length of SMS-CB header
      */
-    static final int PDU_HEADER_LENGTH = 6;
+    public static final int PDU_HEADER_LENGTH = 6;
 
     /**
      * GSM pdu format, as defined in 3gpp TS 23.041, section 9.4.1
@@ -224,39 +226,39 @@ public class SmsCbHeader {
         }
     }
 
-    int getGeographicalScope() {
+    public int getGeographicalScope() {
         return mGeographicalScope;
     }
 
-    int getSerialNumber() {
+    public int getSerialNumber() {
         return mSerialNumber;
     }
 
-    int getServiceCategory() {
+    public int getServiceCategory() {
         return mMessageIdentifier;
     }
 
-    int getDataCodingScheme() {
+    public int getDataCodingScheme() {
         return mDataCodingScheme;
     }
 
-    DataCodingScheme getDataCodingSchemeStructedData() {
+    public DataCodingScheme getDataCodingSchemeStructedData() {
         return mDataCodingSchemeStructedData;
     }
 
-    int getPageIndex() {
+    public int getPageIndex() {
         return mPageIndex;
     }
 
-    int getNumberOfPages() {
+    public int getNumberOfPages() {
         return mNrOfPages;
     }
 
-    SmsCbEtwsInfo getEtwsInfo() {
+    public SmsCbEtwsInfo getEtwsInfo() {
         return mEtwsInfo;
     }
 
-    SmsCbCmasInfo getCmasInfo() {
+    public SmsCbCmasInfo getCmasInfo() {
         return mCmasInfo;
     }
 
@@ -264,7 +266,7 @@ public class SmsCbHeader {
      * Return whether this broadcast is an emergency (PWS) message type.
      * @return true if this message is emergency type; false otherwise
      */
-    boolean isEmergencyMessage() {
+    public boolean isEmergencyMessage() {
         return mMessageIdentifier >= SmsCbConstants.MESSAGE_ID_PWS_FIRST_IDENTIFIER
                 && mMessageIdentifier <= SmsCbConstants.MESSAGE_ID_PWS_LAST_IDENTIFIER;
     }
@@ -273,7 +275,8 @@ public class SmsCbHeader {
      * Return whether this broadcast is an ETWS emergency message type.
      * @return true if this message is ETWS emergency type; false otherwise
      */
-    private boolean isEtwsMessage() {
+    @VisibleForTesting
+    public boolean isEtwsMessage() {
         return (mMessageIdentifier & SmsCbConstants.MESSAGE_ID_ETWS_TYPE_MASK)
                 == SmsCbConstants.MESSAGE_ID_ETWS_TYPE;
     }
@@ -282,7 +285,7 @@ public class SmsCbHeader {
      * Return whether this broadcast is an ETWS primary notification.
      * @return true if this message is an ETWS primary notification; false otherwise
      */
-    boolean isEtwsPrimaryNotification() {
+    public boolean isEtwsPrimaryNotification() {
         return mFormat == FORMAT_ETWS_PRIMARY;
     }
 
@@ -290,7 +293,7 @@ public class SmsCbHeader {
      * Return whether this broadcast is in UMTS format.
      * @return true if this message is in UMTS format; false otherwise
      */
-    boolean isUmtsFormat() {
+    public boolean isUmtsFormat() {
         return mFormat == FORMAT_UMTS;
     }
 

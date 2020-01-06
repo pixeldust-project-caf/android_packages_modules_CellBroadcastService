@@ -18,12 +18,12 @@ package com.android.cellbroadcastservice.tests;
 
 import android.content.Context;
 import android.hardware.radio.V1_0.CdmaSmsMessage;
-import android.telephony.Rlog;
 import android.telephony.SmsCbCmasInfo;
 import android.telephony.SmsCbMessage;
 import android.telephony.cdma.CdmaSmsCbProgramData;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
+import android.util.Log;
 
 import com.android.cellbroadcastservice.BearerData;
 import com.android.cellbroadcastservice.DefaultCellBroadcastService;
@@ -650,10 +650,10 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
                 //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
                 // with random input, cbMessage will almost always be null (log when it isn't)
                 if (cbMessage != null) {
-                    Rlog.d(TAG, "success: " + cbMessage);
+                    Log.d(TAG, "success: " + cbMessage);
                 }
             } catch (Exception e) {
-                Rlog.d(TAG, "exception thrown", e);
+                Log.d(TAG, "exception thrown", e);
                 fail("Exception in decoder at run " + run + " length " + len + ": " + e);
             }
         }
@@ -686,7 +686,7 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
                                 msg.getEnvelopeBearerData(), msg.getEnvelopeServiceCategory());
                 //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
             } catch (Exception e) {
-                Rlog.d(TAG, "exception thrown", e);
+                Log.d(TAG, "exception thrown", e);
                 fail("Exception in decoder at run " + run + " length " + len + ": " + e);
             }
         }
