@@ -86,7 +86,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                 mc.addRow(new Object[]{
                         1,              // _ID
                         0,              // SLOT_INDEX
-                        1,              // SUB_ID
+                        1,              // SUBSCRIPTION_ID
                         0,              // GEOGRAPHICAL_SCOPE
                         "311480",       // PLMN
                         0,              // LAC

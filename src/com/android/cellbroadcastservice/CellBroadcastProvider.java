@@ -102,7 +102,7 @@ public class CellBroadcastProvider extends ContentProvider {
     public static final String[] QUERY_COLUMNS = {
             CellBroadcasts._ID,
             CellBroadcasts.SLOT_INDEX,
-            CellBroadcasts.SUB_ID,
+            CellBroadcasts.SUBSCRIPTION_ID,
             CellBroadcasts.GEOGRAPHICAL_SCOPE,
             CellBroadcasts.PLMN,
             CellBroadcasts.LAC,
@@ -297,7 +297,7 @@ public class CellBroadcastProvider extends ContentProvider {
     public static String getStringForCellBroadcastTableCreation(String tableName) {
         return "CREATE TABLE " + tableName + " ("
                 + CellBroadcasts._ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
-                + CellBroadcasts.SUB_ID + " INTEGER,"
+                + CellBroadcasts.SUBSCRIPTION_ID + " INTEGER,"
                 + CellBroadcasts.SLOT_INDEX + " INTEGER DEFAULT 0,"
                 + CellBroadcasts.GEOGRAPHICAL_SCOPE + " INTEGER,"
                 + CellBroadcasts.PLMN + " TEXT,"
