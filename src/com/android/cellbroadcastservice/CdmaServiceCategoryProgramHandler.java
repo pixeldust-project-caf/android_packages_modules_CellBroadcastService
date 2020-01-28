@@ -16,6 +16,9 @@
 
 package com.android.cellbroadcastservice;
 
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__CDMA_SCP_HANDLING_ERROR;
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_SCP_MESSAGE_TYPE_FROM_FWK;
+
 import android.Manifest;
 import android.app.Activity;
 import android.app.AppOpsManager;
@@ -111,6 +114,9 @@ public final class CdmaServiceCategoryProgramHandler extends WakeLockStateMachin
                     cdmaScpMessage.mCallback);
         } else {
             loge("handleMessage got object of type: " + message.obj.getClass().getName());
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_SCP_MESSAGE_TYPE_FROM_FWK,
+                    message.obj.getClass().getName());
             return false;
         }
     }
@@ -128,6 +134,8 @@ public final class CdmaServiceCategoryProgramHandler extends WakeLockStateMachin
             String originatingAddress, int phoneId, Consumer<Bundle> callback) {
         if (programData == null) {
             loge("handleServiceCategoryProgramData: program data list is null!");
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__CDMA_SCP_EMPTY);
             return false;
         }
 
@@ -160,6 +168,9 @@ public final class CdmaServiceCategoryProgramHandler extends WakeLockStateMachin
             int resultCode = getResultCode();
             if ((resultCode != Activity.RESULT_OK) && (resultCode != Intents.RESULT_SMS_HANDLED)) {
                 loge("SCP results error: result code = " + resultCode);
+                CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                        CELL_BROADCAST_MESSAGE_ERROR__TYPE__CDMA_SCP_HANDLING_ERROR,
+                        "result code = " + resultCode);
                 return;
             }
             Bundle extras = getResultExtras(false);

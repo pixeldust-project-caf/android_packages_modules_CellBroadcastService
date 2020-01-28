@@ -131,6 +131,8 @@ public class SmsCbHeader {
 
     public SmsCbHeader(byte[] pdu) throws IllegalArgumentException {
         if (pdu == null || pdu.length < PDU_HEADER_LENGTH) {
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_HEADER_LENGTH);
             throw new IllegalArgumentException("Illegal PDU");
         }
 
@@ -186,7 +188,12 @@ public class SmsCbHeader {
             int messageType = pdu[0];
 
             if (messageType != MESSAGE_TYPE_CBS_MESSAGE) {
-                throw new IllegalArgumentException("Unsupported message type " + messageType);
+                IllegalArgumentException ex = new IllegalArgumentException(
+                        "Unsupported message type " + messageType);
+                CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                        CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_UNSUPPORTED_HEADER_MESSAGE_TYPE,
+                        ex.toString());
+                throw ex;
             }
 
             mMessageIdentifier = ((pdu[1] & 0xff) << 8) | pdu[2] & 0xff;
@@ -562,6 +569,9 @@ public class SmsCbHeader {
                     // UDH structure not supported
                 case 0x0e:
                     // Defined by the WAP forum not supported
+                    CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                            CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_UNSUPPORTED_HEADER_DATA_CODING_SCHEME,
+                            "Unsupported GSM dataCodingScheme " + dataCodingScheme);
                     throw new IllegalArgumentException("Unsupported GSM dataCodingScheme "
                             + dataCodingScheme);
 

@@ -16,6 +16,9 @@
 
 package com.android.cellbroadcastservice;
 
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_PDU;
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_GSM_MESSAGE_TYPE_FROM_FWK;
+
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
@@ -234,8 +237,18 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                 }
                 if (VDBG) log("Not handled GSM broadcasts.");
             }
+        } else {
+            loge("handleSmsMessage for GSM got object of type: "
+                    + message.obj.getClass().getName());
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_GSM_MESSAGE_TYPE_FROM_FWK,
+                    message.obj.getClass().getName());
         }
-        return super.handleSmsMessage(message);
+        if (message.obj instanceof SmsCbMessage) {
+            return super.handleSmsMessage(message);
+        } else {
+            return false;
+        }
     }
 
     // return the GSM cell location from the first GSM cell info
@@ -367,6 +380,8 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
 
         } catch (RuntimeException e) {
             loge("Error in decoding SMS CB pdu", e);
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_PDU, e.toString());
             return null;
         }
     }

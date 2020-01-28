@@ -19,6 +19,8 @@ package com.android.cellbroadcastservice;
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_MESSAGE_TYPE_FROM_FWK;
+
 import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -247,7 +249,10 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             }
             return false;
         } else {
-            loge("handleMessage got object of type: " + message.obj.getClass().getName());
+            loge("handleSmsMessage got object of type: " + message.obj.getClass().getName());
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_MESSAGE_TYPE_FROM_FWK,
+                    message.obj.getClass().getName());
             return false;
         }
     }
@@ -525,18 +530,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             mLocalLog.log(msg);
             // Send implicit intent since there are various 3rd party carrier apps listen to
             // this intent.
-            intent = new Intent(Telephony.Sms.Intents.SMS_CB_RECEIVED_ACTION);
             receiverPermission = Manifest.permission.RECEIVE_SMS;
             appOp = AppOpsManager.OPSTR_RECEIVE_SMS;
 
-            intent.putExtra(EXTRA_MESSAGE, message);
-            putPhoneIdAndSubIdExtra(mContext, intent, slotIndex);
-
             mReceiverCount.incrementAndGet();
-            CellBroadcastIntents.sendOrderedBroadcastForBackgroundReceivers(
-                    mContext, UserHandle.ALL, intent,
-                    receiverPermission, appOp, mReceiver, getHandler(), Activity.RESULT_OK,
-                    null, null);
+            CellBroadcastIntents.sendSmsCbReceivedBroadcast(
+                    mContext, UserHandle.ALL, message, mReceiver, getHandler(), Activity.RESULT_OK,
+                    slotIndex);
         }
 
         if (messageUri != null) {

@@ -16,6 +16,8 @@
 
 package com.android.cellbroadcastservice;
 
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__CDMA_DECODING_ERROR;
+
 import android.content.Context;
 import android.os.Bundle;
 import android.telephony.CellBroadcastService;
@@ -33,8 +35,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * The default implementation of CellBroadcastService, which is used for handling GSM and CDMA
- * cell broadcast messages.
+ * The default implementation of CellBroadcastService, which is used for handling GSM and CDMA cell
+ * broadcast messages.
  */
 public class DefaultCellBroadcastService extends CellBroadcastService {
     private GsmCellBroadcastHandler mGsmCellBroadcastHandler;
@@ -43,8 +45,8 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
 
     private static final String TAG = "DefaultCellBroadcastService";
 
-    private static final char[] HEX_DIGITS = { '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+    private static final char[] HEX_DIGITS = {'0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
     @Override
     public void onCreate() {
@@ -67,12 +69,16 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
     @Override
     public void onGsmCellBroadcastSms(int slotIndex, byte[] message) {
         Log.d(TAG, "onGsmCellBroadcastSms received message on slotId=" + slotIndex);
+        CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_REPORTED,
+                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__TYPE__GSM);
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(slotIndex, message);
     }
 
     @Override
     public void onCdmaCellBroadcastSms(int slotIndex, byte[] bearerData, int serviceCategory) {
         Log.d(TAG, "onCdmaCellBroadcastSms received message on slotId=" + slotIndex);
+        CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_REPORTED,
+                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__TYPE__CDMA);
         int[] subIds =
                 ((SubscriptionManager) getSystemService(
                         Context.TELEPHONY_SUBSCRIPTION_SERVICE)).getSubscriptionIds(slotIndex);
@@ -80,12 +86,12 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
         if (subIds != null && subIds.length > 0) {
             int subId = subIds[0];
             plmn = ((TelephonyManager) getSystemService(
-                            Context.TELEPHONY_SERVICE)).createForSubscriptionId(
-                            subId).getNetworkOperator();
+                    Context.TELEPHONY_SERVICE)).createForSubscriptionId(
+                    subId).getNetworkOperator();
         } else {
             plmn = "";
         }
-        SmsCbMessage message = parseBroadcastSms(getApplicationContext(), slotIndex, plmn,
+        SmsCbMessage message = parseCdmaBroadcastSms(getApplicationContext(), slotIndex, plmn,
                 bearerData, serviceCategory);
         if (message != null) {
             mCdmaCellBroadcastHandler.onCdmaCellBroadcastSms(message);
@@ -96,6 +102,8 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
     public void onCdmaScpMessage(int slotIndex, List<CdmaSmsCbProgramData> programData,
             String originatingAddress, Consumer<Bundle> callback) {
         Log.d(TAG, "onCdmaScpMessage received message on slotId=" + slotIndex);
+        CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_REPORTED,
+                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__TYPE__CDMA_SPC);
         mCdmaScpHandler.onCdmaScpMessage(slotIndex, new ArrayList<>(programData),
                 originatingAddress, callback);
     }
@@ -103,18 +111,22 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
     /**
      * Parses a CDMA broadcast SMS
      *
-     * @param slotIndex the slotIndex the SMS was received on
-     * @param plmn the PLMN for a broadcast SMS or "" if unknown
-     * @param bearerData the bearerData of the SMS
+     * @param slotIndex       the slotIndex the SMS was received on
+     * @param plmn            the PLMN for a broadcast SMS or "" if unknown
+     * @param bearerData      the bearerData of the SMS
      * @param serviceCategory the service category of the broadcast
      */
     @VisibleForTesting
-    public static SmsCbMessage parseBroadcastSms(Context context, int slotIndex, String plmn,
+    public static SmsCbMessage parseCdmaBroadcastSms(Context context, int slotIndex, String plmn,
             byte[] bearerData,
             int serviceCategory) {
-        BearerData bData = BearerData.decode(context, bearerData, serviceCategory);
-        if (bData == null) {
-            Log.w(TAG, "BearerData.decode() returned null");
+        BearerData bData;
+        try {
+            bData = BearerData.decode(context, bearerData, serviceCategory);
+        } catch (Exception e) {
+            Log.e(TAG, "Error decoding bearer data e=" + e.toString());
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__CDMA_DECODING_ERROR, e.toString());
             return null;
         }
         Log.d(TAG, "MT raw BearerData = " + toHexString(bearerData, 0, bearerData.length));

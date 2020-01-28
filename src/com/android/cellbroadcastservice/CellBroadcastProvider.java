@@ -16,6 +16,8 @@
 
 package com.android.cellbroadcastservice;
 
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__FAILED_TO_INSERT_TO_DB;
+
 import android.content.ContentProvider;
 import android.content.ContentUris;
 import android.content.ContentValues;
@@ -230,12 +232,27 @@ public class CellBroadcastProvider extends ContentProvider {
                             .notifyChange(CONTENT_URI, null /* observer */);
                     return newUri;
                 } else {
-                    Log.e(TAG, "Insert record failed because of unknown reason, uri = " + uri);
+                    String errorString = "uri=" + uri.toString() + " values=" + values;
+                    // 1000 character limit for error logs
+                    if (errorString.length() > 1000) {
+                        errorString = errorString.substring(0, 1000);
+                    }
+                    CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                            CELL_BROADCAST_MESSAGE_ERROR__TYPE__FAILED_TO_INSERT_TO_DB,
+                            errorString);
+                    Log.e(TAG, "Insert record failed because of unknown reason. " + errorString);
                     return null;
                 }
             default:
-                throw new IllegalArgumentException(
-                        "Insert method doesn't support this uri = " + uri);
+                String errorString = "Insert method doesn't support this uri="
+                        + uri.toString() + " values=" + values;
+                // 1000 character limit for error logs
+                if (errorString.length() > 1000) {
+                    errorString = errorString.substring(0, 1000);
+                }
+                CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                        CELL_BROADCAST_MESSAGE_ERROR__TYPE__FAILED_TO_INSERT_TO_DB, errorString);
+                throw new IllegalArgumentException(errorString);
         }
     }
 

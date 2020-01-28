@@ -232,6 +232,9 @@ public class CbGeoUtils {
                     break;
                 default:
                     Log.e(TAG, "Invalid geometry format " + geometryStr);
+                    CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                            CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_GEOMETRY_FROM_FWK,
+                            geometryStr);
             }
         }
         return geometries;
