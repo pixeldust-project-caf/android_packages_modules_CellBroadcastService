@@ -18,6 +18,7 @@ package com.android.cellbroadcastservice;
 
 import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__CDMA_DECODING_ERROR;
 
+import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Bundle;
 import android.telephony.CellBroadcastService;
@@ -108,6 +109,12 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
                 originatingAddress, callback);
     }
 
+    @Override
+    public @NonNull String getCellBroadcastAreaInfo(int slotIndex) {
+        Log.d(TAG, "getCellBroadcastAreaInfo on slotId=" + slotIndex);
+        return mGsmCellBroadcastHandler.getCellBroadcastAreaInfo(slotIndex);
+    }
+
     /**
      * Parses a CDMA broadcast SMS
      *
@@ -142,7 +149,7 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
 
         return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP2,
                 SmsCbMessage.GEOGRAPHICAL_SCOPE_PLMN_WIDE, bData.messageId, location,
-                serviceCategory, bData.getLanguage(), bData.userData.payloadStr,
+                serviceCategory, bData.getLanguage(), 0, bData.userData.payloadStr,
                 bData.priority, null, bData.cmasWarningInfo, 0, null, System.currentTimeMillis(),
                 slotIndex, subId);
     }

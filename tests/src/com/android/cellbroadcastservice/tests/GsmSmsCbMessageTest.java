@@ -17,6 +17,8 @@
 package com.android.cellbroadcastservice.tests;
 
 import android.telephony.CbGeoUtils;
+import android.telephony.CbGeoUtils.Circle;
+import android.telephony.CbGeoUtils.Polygon;
 import android.telephony.SmsCbCmasInfo;
 import android.telephony.SmsCbEtwsInfo;
 import android.telephony.SmsCbLocation;
@@ -27,8 +29,6 @@ import android.util.Log;
 
 import androidx.test.InstrumentationRegistry;
 
-import com.android.cellbroadcastservice.CbGeoUtils.Circle;
-import com.android.cellbroadcastservice.CbGeoUtils.Polygon;
 import com.android.cellbroadcastservice.GsmSmsCbMessage;
 import com.android.cellbroadcastservice.R;
 import com.android.cellbroadcastservice.SmsCbConstants;

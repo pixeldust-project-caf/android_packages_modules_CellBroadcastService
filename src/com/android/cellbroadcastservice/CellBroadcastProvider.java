@@ -67,7 +67,7 @@ public class CellBroadcastProvider extends ContentProvider {
     private static final String DATABASE_NAME = "cellbroadcasts.db";
 
     /** Database version. */
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
 
     /** URI matcher for ContentProvider queries. */
     private static final UriMatcher sUriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -323,6 +323,7 @@ public class CellBroadcastProvider extends ContentProvider {
                 + CellBroadcasts.SERIAL_NUMBER + " INTEGER,"
                 + CellBroadcasts.SERVICE_CATEGORY + " INTEGER,"
                 + CellBroadcasts.LANGUAGE_CODE + " TEXT,"
+                + CellBroadcasts.DATA_CODING_SCHEME + " INTEGER DEFAULT 0,"
                 + CellBroadcasts.MESSAGE_BODY + " TEXT,"
                 + CellBroadcasts.MESSAGE_FORMAT + " INTEGER,"
                 + CellBroadcasts.MESSAGE_PRIORITY + " INTEGER,"
@@ -334,7 +335,9 @@ public class CellBroadcastProvider extends ContentProvider {
                 + CellBroadcasts.CMAS_URGENCY + " INTEGER,"
                 + CellBroadcasts.CMAS_CERTAINTY + " INTEGER,"
                 + CellBroadcasts.RECEIVED_TIME + " BIGINT,"
+                + CellBroadcasts.LOCATION_CHECK_TIME + " BIGINT DEFAULT -1,"
                 + CellBroadcasts.MESSAGE_BROADCASTED + " BOOLEAN DEFAULT 0,"
+                + CellBroadcasts.MESSAGE_DISPLAYED + " BOOLEAN DEFAULT 0,"
                 + CellBroadcasts.GEOMETRIES + " TEXT,"
                 + CellBroadcasts.MAXIMUM_WAIT_TIME + " INTEGER);";
     }
@@ -395,6 +398,16 @@ public class CellBroadcastProvider extends ContentProvider {
                 db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
                         + CellBroadcasts.SLOT_INDEX + " INTEGER DEFAULT 0;");
                 Log.d(TAG, "add slotIndex column");
+            } else if (oldVersion < 3) {
+                db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
+                        + CellBroadcasts.DATA_CODING_SCHEME + " INTEGER DEFAULT 0;");
+                db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
+                        + CellBroadcasts.LOCATION_CHECK_TIME + " BIGINT DEFAULT -1;");
+                // Specifically for upgrade, the message displayed should be true. For newly arrived
+                // message, default should be false.
+                db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
+                        + CellBroadcasts.MESSAGE_DISPLAYED + " BOOLEAN DEFAULT 1;");
+                Log.d(TAG, "add dcs, location check time, and message displayed column.");
             }
         }
     }

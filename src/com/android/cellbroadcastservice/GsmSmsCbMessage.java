@@ -28,8 +28,10 @@ import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADC
 import android.annotation.NonNull;
 import android.content.Context;
 import android.content.res.Resources;
+import android.telephony.CbGeoUtils.Circle;
 import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CbGeoUtils.LatLng;
+import android.telephony.CbGeoUtils.Polygon;
 import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
 import android.telephony.SmsMessage;
@@ -37,8 +39,6 @@ import android.telephony.SubscriptionManager;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.cellbroadcastservice.CbGeoUtils.Circle;
-import com.android.cellbroadcastservice.CbGeoUtils.Polygon;
 import com.android.cellbroadcastservice.GsmSmsCbMessage.GeoFencingTriggerMessage.CellBroadcastIdentity;
 import com.android.cellbroadcastservice.SmsCbHeader.DataCodingScheme;
 import com.android.internal.annotations.VisibleForTesting;
@@ -112,7 +112,7 @@ public class GsmSmsCbMessage {
             // message identifier, warning type, and warning security information.
             // There is no field for the content/text so we get the text from the resources.
             return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP, header.getGeographicalScope(),
-                    header.getSerialNumber(), location, header.getServiceCategory(), null,
+                    header.getSerialNumber(), location, header.getServiceCategory(), null, 0,
                     getEtwsPrimaryMessage(context, header.getEtwsInfo().getWarningType()),
                     SmsCbMessage.MESSAGE_PRIORITY_EMERGENCY, header.getEtwsInfo(),
                     header.getCmasInfo(), 0, null, receivedTimeMillis, slotIndex, subId);
@@ -147,7 +147,7 @@ public class GsmSmsCbMessage {
 
             return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
                     header.getGeographicalScope(), header.getSerialNumber(), location,
-                    header.getServiceCategory(), language, body, priority,
+                    header.getServiceCategory(), language, 0, body, priority,
                     header.getEtwsInfo(), header.getCmasInfo(), maximumWaitingTimeSec, geometries,
                     receivedTimeMillis, slotIndex, subId);
         } else {
@@ -163,7 +163,7 @@ public class GsmSmsCbMessage {
 
             return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
                     header.getGeographicalScope(), header.getSerialNumber(), location,
-                    header.getServiceCategory(), language, sb.toString(), priority,
+                    header.getServiceCategory(), language, 0, sb.toString(), priority,
                     header.getEtwsInfo(), header.getCmasInfo(), 0, null, receivedTimeMillis,
                     slotIndex, subId);
         }
