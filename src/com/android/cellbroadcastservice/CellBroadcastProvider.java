@@ -112,6 +112,7 @@ public class CellBroadcastProvider extends ContentProvider {
             CellBroadcasts.SERIAL_NUMBER,
             CellBroadcasts.SERVICE_CATEGORY,
             CellBroadcasts.LANGUAGE_CODE,
+            CellBroadcasts.DATA_CODING_SCHEME,
             CellBroadcasts.MESSAGE_BODY,
             CellBroadcasts.MESSAGE_FORMAT,
             CellBroadcasts.MESSAGE_PRIORITY,
@@ -123,7 +124,9 @@ public class CellBroadcastProvider extends ContentProvider {
             CellBroadcasts.CMAS_URGENCY,
             CellBroadcasts.CMAS_CERTAINTY,
             CellBroadcasts.RECEIVED_TIME,
+            CellBroadcasts.LOCATION_CHECK_TIME,
             CellBroadcasts.MESSAGE_BROADCASTED,
+            CellBroadcasts.MESSAGE_DISPLAYED,
             CellBroadcasts.GEOMETRIES,
             CellBroadcasts.MAXIMUM_WAIT_TIME
     };

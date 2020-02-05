@@ -41,6 +41,7 @@ import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.util.Pair;
 import android.util.SparseArray;
@@ -65,7 +66,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
     /** Indicates that a message is not being broadcasted. */
     private static final String MESSAGE_NOT_BROADCASTED = "0";
 
-    private SparseArray<String> mAreaInfos = new SparseArray<>();
+    private final SparseArray<String> mAreaInfos = new SparseArray<>();
 
     /** This map holds incomplete concatenated messages waiting for assembly. */
     private final HashMap<SmsCbConcatInfo, byte[][]> mSmsCbPageMap =
@@ -97,7 +98,10 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
      */
     @NonNull
     public String getCellBroadcastAreaInfo(int slotIndex) {
-        String info = mAreaInfos.get(slotIndex);
+        String info;
+        synchronized (mAreaInfos) {
+            info = mAreaInfos.get(slotIndex);
+        }
         return info == null ? "" : info;
     }
 
@@ -248,7 +252,14 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
 
         if (IntStream.of(areaInfoChannels).anyMatch(
                 x -> x == message.getServiceCategory())) {
-            mAreaInfos.put(slotIndex, message.getMessageBody());
+            synchronized (mAreaInfos) {
+                String info = mAreaInfos.get(slotIndex);
+                if (TextUtils.equals(info, message.getMessageBody())) {
+                    // Message is a duplicate
+                    return true;
+                }
+                mAreaInfos.put(slotIndex, message.getMessageBody());
+            }
 
             String[] pkgs = mContext.getResources().getStringArray(
                     R.array.config_area_info_receiver_packages);
