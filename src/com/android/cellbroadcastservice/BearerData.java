@@ -576,65 +576,57 @@ public final class BearerData {
      * @param serviceCategory the envelope service category (for CMAS alert handling)
      * @return an instance of BearerData.
      */
-    public static BearerData decode(Context context, byte[] smsData, int serviceCategory) {
-        try {
-            BitwiseInputStream inStream = new BitwiseInputStream(smsData);
-            BearerData bData = new BearerData();
-            int foundSubparamMask = 0;
-            while (inStream.available() > 0) {
-                int subparamId = inStream.read(8);
-                int subparamIdBit = 1 << subparamId;
-                // int is 4 bytes. This duplicate check has a limit to Id number up to 32 (4*8)
-                // as 32th bit is the max bit in int.
-                // Per 3GPP2 C.S0015-B Table 4.5-1 Bearer Data Subparameter Identifiers:
-                // last defined subparam ID is 23 (00010111 = 0x17 = 23).
-                // Only do duplicate subparam ID check if subparam is within defined value as
-                // reserved subparams are just skipped.
-                if ((foundSubparamMask & subparamIdBit) != 0 &&
-                        (subparamId >= SUBPARAM_MESSAGE_IDENTIFIER &&
-                                subparamId <= SUBPARAM_ID_LAST_DEFINED)) {
-                    throw new CodingException("illegal duplicate subparameter (" +
-                            subparamId + ")");
-                }
-                boolean decodeSuccess;
-                switch (subparamId) {
-                    case SUBPARAM_MESSAGE_IDENTIFIER:
-                        decodeSuccess = decodeMessageId(bData, inStream);
-                        break;
-                    case SUBPARAM_USER_DATA:
-                        decodeSuccess = decodeUserData(bData, inStream);
-                        break;
-                    case SUBPARAM_LANGUAGE_INDICATOR:
-                        decodeSuccess = decodeLanguageIndicator(bData, inStream);
-                        break;
-                    case SUBPARAM_PRIORITY_INDICATOR:
-                        decodeSuccess = decodePriorityIndicator(bData, inStream);
-                        break;
-                    default:
-                        decodeSuccess = decodeReserved(inStream, subparamId);
-                }
-                if (decodeSuccess &&
-                        (subparamId >= SUBPARAM_MESSAGE_IDENTIFIER &&
-                                subparamId <= SUBPARAM_ID_LAST_DEFINED)) {
-                    foundSubparamMask |= subparamIdBit;
-                }
+    public static BearerData decode(Context context, byte[] smsData, int serviceCategory)
+            throws CodingException, BitwiseInputStream.AccessException {
+        BitwiseInputStream inStream = new BitwiseInputStream(smsData);
+        BearerData bData = new BearerData();
+        int foundSubparamMask = 0;
+        while (inStream.available() > 0) {
+            int subparamId = inStream.read(8);
+            int subparamIdBit = 1 << subparamId;
+            // int is 4 bytes. This duplicate check has a limit to Id number up to 32 (4*8)
+            // as 32th bit is the max bit in int.
+            // Per 3GPP2 C.S0015-B Table 4.5-1 Bearer Data Subparameter Identifiers:
+            // last defined subparam ID is 23 (00010111 = 0x17 = 23).
+            // Only do duplicate subparam ID check if subparam is within defined value as
+            // reserved subparams are just skipped.
+            if ((foundSubparamMask & subparamIdBit) != 0 && (
+                    subparamId >= SUBPARAM_MESSAGE_IDENTIFIER
+                            && subparamId <= SUBPARAM_ID_LAST_DEFINED)) {
+                throw new CodingException("illegal duplicate subparameter (" + subparamId + ")");
             }
-            if ((foundSubparamMask & (1 << SUBPARAM_MESSAGE_IDENTIFIER)) == 0) {
-                throw new CodingException("missing MESSAGE_IDENTIFIER subparam");
+            boolean decodeSuccess;
+            switch (subparamId) {
+                case SUBPARAM_MESSAGE_IDENTIFIER:
+                    decodeSuccess = decodeMessageId(bData, inStream);
+                    break;
+                case SUBPARAM_USER_DATA:
+                    decodeSuccess = decodeUserData(bData, inStream);
+                    break;
+                case SUBPARAM_LANGUAGE_INDICATOR:
+                    decodeSuccess = decodeLanguageIndicator(bData, inStream);
+                    break;
+                case SUBPARAM_PRIORITY_INDICATOR:
+                    decodeSuccess = decodePriorityIndicator(bData, inStream);
+                    break;
+                default:
+                    decodeSuccess = decodeReserved(inStream, subparamId);
             }
-            if (bData.userData != null) {
-                if (isCmasAlertCategory(serviceCategory)) {
-                    decodeCmasUserData(context, bData, serviceCategory);
-                } else {
-                    decodeUserDataPayload(context, bData.userData, bData.hasUserDataHeader);
-                }
+            if (decodeSuccess && (subparamId >= SUBPARAM_MESSAGE_IDENTIFIER
+                    && subparamId <= SUBPARAM_ID_LAST_DEFINED)) {
+                foundSubparamMask |= subparamIdBit;
             }
-            return bData;
-        } catch (BitwiseInputStream.AccessException ex) {
-            Log.e(LOG_TAG, "BearerData decode failed: " + ex);
-        } catch (CodingException ex) {
-            Log.e(LOG_TAG, "BearerData decode failed: " + ex);
         }
-        return null;
+        if ((foundSubparamMask & (1 << SUBPARAM_MESSAGE_IDENTIFIER)) == 0) {
+            throw new CodingException("missing MESSAGE_IDENTIFIER subparam");
+        }
+        if (bData.userData != null) {
+            if (isCmasAlertCategory(serviceCategory)) {
+                decodeCmasUserData(context, bData, serviceCategory);
+            } else {
+                decodeUserDataPayload(context, bData.userData, bData.hasUserDataHeader);
+            }
+        }
+        return bData;
     }
 }

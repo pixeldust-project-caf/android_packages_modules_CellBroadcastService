@@ -43,7 +43,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Test cases to verify that our parseBroadcastSms function correctly works with the
+ * Test cases to verify that our parseCdmaBroadcastSms function correctly works with the
  * CdmaSmsMessage class.
  */
 @RunWith(AndroidTestingRunner.class)
@@ -448,9 +448,9 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
                 BearerData.LANGUAGE_ENGLISH, encoding, TEST_TEXT);
 
         SmsCbMessage cbMessage =
-                DefaultCellBroadcastService.parseBroadcastSms(context,
+                DefaultCellBroadcastService.parseCdmaBroadcastSms(context,
                         0, "", msg.getEnvelopeBearerData(), msg.getEnvelopeServiceCategory());
-        //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
+        //SmsCbMessage cbMessage = msg.parseCdmaBroadcastSms("", 0);
         verifyCbValues(cbMessage);
         assertEquals(123, cbMessage.getServiceCategory());
         assertEquals(456, cbMessage.getSerialNumber());
@@ -483,9 +483,9 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
                 ENCODING_7BIT_ASCII, body, -1, -1, -1, -1, -1);
 
         SmsCbMessage cbMessage =
-                DefaultCellBroadcastService.parseBroadcastSms(context,
+                DefaultCellBroadcastService.parseCdmaBroadcastSms(context,
                         0, "", msg.getEnvelopeBearerData(), msg.getEnvelopeServiceCategory());
-        //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
+        //SmsCbMessage cbMessage = msg.parseCdmaBroadcastSms("", 0);
         verifyCbValues(cbMessage);
         assertEquals(serviceCategory, cbMessage.getServiceCategory());
         assertEquals(1234, cbMessage.getSerialNumber());
@@ -544,9 +544,9 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
                 SmsCbCmasInfo.CMAS_URGENCY_EXPECTED, SmsCbCmasInfo.CMAS_CERTAINTY_LIKELY);
 
         SmsCbMessage cbMessage =
-                DefaultCellBroadcastService.parseBroadcastSms(mMockedContext,
+                DefaultCellBroadcastService.parseCdmaBroadcastSms(mMockedContext,
                         0, "", msg.getEnvelopeBearerData(), msg.getEnvelopeServiceCategory());
-        //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
+        //SmsCbMessage cbMessage = msg.parseCdmaBroadcastSms("", 0);
         verifyCbValues(cbMessage);
         assertEquals(CdmaSmsCbProgramData.CATEGORY_CMAS_EXTREME_THREAT,
                 cbMessage.getServiceCategory());
@@ -575,9 +575,9 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
                 0x1F, EXTREME_ALERT, -1, -1, -1, -1, -1);
 
         SmsCbMessage cbMessage =
-                DefaultCellBroadcastService.parseBroadcastSms(mMockedContext,
+                DefaultCellBroadcastService.parseCdmaBroadcastSms(mMockedContext,
                         0, "", msg.getEnvelopeBearerData(), msg.getEnvelopeServiceCategory());
-        //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
+        //SmsCbMessage cbMessage = msg.parseCdmaBroadcastSms("", 0);
         assertNull("expected null for unsupported charset", cbMessage);
     }
 
@@ -590,9 +590,9 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
                 ENCODING_KOREAN, EXTREME_ALERT, -1, -1, -1, -1, -1);
 
         SmsCbMessage cbMessage =
-                DefaultCellBroadcastService.parseBroadcastSms(mMockedContext,
+                DefaultCellBroadcastService.parseCdmaBroadcastSms(mMockedContext,
                         0, "", msg.getEnvelopeBearerData(), msg.getEnvelopeServiceCategory());
-        //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
+        //SmsCbMessage cbMessage = msg.parseCdmaBroadcastSms("", 0);
         assertNull("expected null for unsupported charset", cbMessage);
     }
 
@@ -606,9 +606,9 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
                 ENCODING_7BIT_ASCII, null, -1, -1, -1, -1, -1);
 
         SmsCbMessage cbMessage =
-                DefaultCellBroadcastService.parseBroadcastSms(mMockedContext,
+                DefaultCellBroadcastService.parseCdmaBroadcastSms(mMockedContext,
                         0, "", msg.getEnvelopeBearerData(), msg.getEnvelopeServiceCategory());
-        //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
+        //SmsCbMessage cbMessage = msg.parseCdmaBroadcastSms("", 0);
         verifyCbValues(cbMessage);
         assertEquals(CdmaSmsCbProgramData.CATEGORY_CMAS_PRESIDENTIAL_LEVEL_ALERT,
                 cbMessage.getServiceCategory());
@@ -643,11 +643,11 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
                 CdmaSmsMessage cdmaSmsMessage = createBroadcastParcel(category);
                 SmsMessage msg = createMessageFromParcel(cdmaSmsMessage, data);
                 SmsCbMessage cbMessage =
-                        DefaultCellBroadcastService.parseBroadcastSms(
+                        DefaultCellBroadcastService.parseCdmaBroadcastSms(
                                 mMockedContext,
                                 0, "", msg.getEnvelopeBearerData(),
                                 msg.getEnvelopeServiceCategory());
-                //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
+                //SmsCbMessage cbMessage = msg.parseCdmaBroadcastSms("", 0);
                 // with random input, cbMessage will almost always be null (log when it isn't)
                 if (cbMessage != null) {
                     Log.d(TAG, "success: " + cbMessage);
@@ -682,9 +682,9 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
 
                 SmsMessage msg = createMessageFromParcel(cdmaSmsMessage, bos.toByteArray());
                 SmsCbMessage cbMessage =
-                        DefaultCellBroadcastService.parseBroadcastSms(mMockedContext, 0, "",
+                        DefaultCellBroadcastService.parseCdmaBroadcastSms(mMockedContext, 0, "",
                                 msg.getEnvelopeBearerData(), msg.getEnvelopeServiceCategory());
-                //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
+                //SmsCbMessage cbMessage = msg.parseCdmaBroadcastSms("", 0);
             } catch (Exception e) {
                 Log.d(TAG, "exception thrown", e);
                 fail("Exception in decoder at run " + run + " length " + len + ": " + e);
@@ -854,9 +854,9 @@ public class CdmaSmsMessageTest extends CellBroadcastServiceTestBase {
         SmsMessage msg = createMessageFromParcel(cdmaSmsMessage, CMAS_TEST_BEARER_DATA);
 
         SmsCbMessage cbMessage =
-                DefaultCellBroadcastService.parseBroadcastSms(mMockedContext,
+                DefaultCellBroadcastService.parseCdmaBroadcastSms(mMockedContext,
                         0, "", msg.getEnvelopeBearerData(), msg.getEnvelopeServiceCategory());
-        //SmsCbMessage cbMessage = msg.parseBroadcastSms("", 0);
+        //SmsCbMessage cbMessage = msg.parseCdmaBroadcastSms("", 0);
         assertNotNull("expected non-null for bearer data", cbMessage);
         assertEquals("geoScope", cbMessage.getGeographicalScope(), 1);
         assertEquals("serialNumber", cbMessage.getSerialNumber(), 51072);

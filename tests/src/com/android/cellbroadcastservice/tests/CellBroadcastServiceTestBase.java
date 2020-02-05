@@ -160,6 +160,8 @@ public class CellBroadcastServiceTestBase extends TestCase {
             doReturn(value).when(mMockedResources).getInteger(eq(id));
         } else if (value instanceof Integer[]) {
             doReturn(value).when(mMockedResources).getIntArray(eq(id));
+        } else if (value instanceof int[]) {
+            doReturn(value).when(mMockedResources).getIntArray(eq(id));
         } else if (value instanceof String) {
             doReturn(value).when(mMockedResources).getString(eq(id));
         }

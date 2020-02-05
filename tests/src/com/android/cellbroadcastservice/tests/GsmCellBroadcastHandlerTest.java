@@ -162,7 +162,11 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         putResources(com.android.cellbroadcastservice.R.integer.message_expiration_time, 86400000);
         putResources(
                 com.android.cellbroadcastservice.R.array.config_defaultCellBroadcastReceiverPkgs,
-                new String[]{"fake.cellbroadcast.pkg"});
+                new String[]{"fake.cellcbroadcast.pkg"});
+        putResources(com.android.cellbroadcastservice.R.array.area_info_channels, new int[]{});
+        putResources(
+                com.android.cellbroadcastservice.R.array.config_area_info_receiver_packages,
+                new String[]{"fake.inforeceiver.pkg"});
     }
 
     @After

@@ -16,17 +16,24 @@
 
 package com.android.cellbroadcastservice;
 
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_PDU;
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_GSM_MESSAGE_TYPE_FROM_FWK;
+
+import android.annotation.NonNull;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
+import android.os.UserHandle;
 import android.provider.Telephony.CellBroadcasts;
 import android.telephony.CbGeoUtils.Geometry;
+import android.telephony.CellBroadcastIntents;
 import android.telephony.CellIdentity;
 import android.telephony.CellIdentityGsm;
 import android.telephony.CellInfo;
@@ -36,6 +43,7 @@ import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.format.DateUtils;
 import android.util.Pair;
+import android.util.SparseArray;
 
 import com.android.cellbroadcastservice.GsmSmsCbMessage.GeoFencingTriggerMessage;
 import com.android.cellbroadcastservice.GsmSmsCbMessage.GeoFencingTriggerMessage.CellBroadcastIdentity;
@@ -46,6 +54,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.IntStream;
 
 /**
  * Handler for 3GPP format Cell Broadcasts. Parent class can also handle CDMA Cell Broadcasts.
@@ -55,6 +64,8 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
 
     /** Indicates that a message is not being broadcasted. */
     private static final String MESSAGE_NOT_BROADCASTED = "0";
+
+    private SparseArray<String> mAreaInfos = new SparseArray<>();
 
     /** This map holds incomplete concatenated messages waiting for assembly. */
     private final HashMap<SmsCbConcatInfo, byte[][]> mSmsCbPageMap =
@@ -76,6 +87,18 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
      */
     public void onGsmCellBroadcastSms(int slotIndex, byte[] message) {
         sendMessage(EVENT_NEW_SMS_MESSAGE, slotIndex, -1, message);
+    }
+
+    /**
+     * Get the area information
+     *
+     * @param slotIndex SIM slot index
+     * @return The area information
+     */
+    @NonNull
+    public String getCellBroadcastAreaInfo(int slotIndex) {
+        String info = mAreaInfos.get(slotIndex);
+        return info == null ? "" : info;
     }
 
     /**
@@ -202,6 +225,47 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
     }
 
     /**
+     * Process area info message.
+     *
+     * @param slotIndex SIM slot index
+     * @param message Cell broadcast message
+     * @return {@code true} if the mssage is an area info message and got processed correctly,
+     * otherwise {@code false}.
+     */
+    private boolean handleAreaInfoMessage(int slotIndex, SmsCbMessage message) {
+        SubscriptionManager subMgr = (SubscriptionManager) mContext.getSystemService(
+                Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+
+        // Check area info message
+        int[] subIds = subMgr.getSubscriptionIds(slotIndex);
+        Resources res;
+        if (subIds != null) {
+            res = getResources(subIds[0]);
+        } else {
+            res = getResources(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID);
+        }
+        int[] areaInfoChannels = res.getIntArray(R.array.area_info_channels);
+
+        if (IntStream.of(areaInfoChannels).anyMatch(
+                x -> x == message.getServiceCategory())) {
+            mAreaInfos.put(slotIndex, message.getMessageBody());
+
+            String[] pkgs = mContext.getResources().getStringArray(
+                    R.array.config_area_info_receiver_packages);
+            for (String pkg : pkgs) {
+                Intent intent = new Intent(CellBroadcastIntents.ACTION_AREA_INFO_UPDATED);
+                intent.setPackage(pkg);
+                mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                        android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+            }
+            return true;
+        }
+
+        // This is not an area info message.
+        return false;
+    }
+
+    /**
      * Handle 3GPP-format Cell Broadcast messages sent from radio.
      *
      * @param message the message to process
@@ -229,13 +293,29 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                     if (isDuplicate(cbMessage)) {
                         return false;
                     }
+
+                    if (handleAreaInfoMessage(slotIndex, cbMessage)) {
+                        log("Channel " + cbMessage.getServiceCategory() + " message processed");
+                        return false;
+                    }
+
                     handleBroadcastSms(cbMessage);
                     return true;
                 }
                 if (VDBG) log("Not handled GSM broadcasts.");
             }
+        } else {
+            loge("handleSmsMessage for GSM got object of type: "
+                    + message.obj.getClass().getName());
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_GSM_MESSAGE_TYPE_FROM_FWK,
+                    message.obj.getClass().getName());
         }
-        return super.handleSmsMessage(message);
+        if (message.obj instanceof SmsCbMessage) {
+            return super.handleSmsMessage(message);
+        } else {
+            return false;
+        }
     }
 
     // return the GSM cell location from the first GSM cell info
@@ -367,6 +447,8 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
 
         } catch (RuntimeException e) {
             loge("Error in decoding SMS CB pdu", e);
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_PDU, e.toString());
             return null;
         }
     }

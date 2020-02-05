@@ -6,6 +6,7 @@ java_defaults {
       "src/**/*.java",
       ":framework-annotations",
       ":framework-cellbroadcast-shared-srcs",
+      ":statslog-cellbroadcast-java-gen",
     ],
     libs: [
         "unsupportedappusage",
@@ -38,11 +39,20 @@ android_app {
      manifest: "AndroidManifest_Platform.xml",
 }
 
+genrule {
+  name: "statslog-cellbroadcast-java-gen",
+  tools: ["stats-log-api-gen"],
+  cmd: "$(location stats-log-api-gen) --java $(out) --module cellbroadcast --javaPackage com.android.cellbroadcastservice --javaClass CellBroadcastStatsLog",
+  out: ["com/android/cellbroadcastservice/CellBroadcastStatsLog.java"],
+}
+
+
 // used to share common constants between cellbroadcastservice and cellbroadcastreceier
 filegroup {
     name: "cellbroadcast-constants-shared-srcs",
     srcs: [
         "src/com/android/cellbroadcastservice/SmsCbConstants.java",
+        ":statslog-cellbroadcast-java-gen",
     ],
 }
 
@@ -62,5 +72,6 @@ filegroup {
     srcs: [
         "src/**/*.java",
         ":framework-cellbroadcast-shared-srcs",
+        ":statslog-cellbroadcast-java-gen",
     ],
 }

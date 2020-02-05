@@ -22,11 +22,16 @@ import static android.telephony.SmsCbEtwsInfo.ETWS_WARNING_TYPE_OTHER_EMERGENCY;
 import static android.telephony.SmsCbEtwsInfo.ETWS_WARNING_TYPE_TEST_MESSAGE;
 import static android.telephony.SmsCbEtwsInfo.ETWS_WARNING_TYPE_TSUNAMI;
 
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_GEO_FENCING_DATA;
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_UMTS_INVALID_WAC;
+
 import android.annotation.NonNull;
 import android.content.Context;
 import android.content.res.Resources;
+import android.telephony.CbGeoUtils.Circle;
 import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CbGeoUtils.LatLng;
+import android.telephony.CbGeoUtils.Polygon;
 import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
 import android.telephony.SmsMessage;
@@ -34,8 +39,6 @@ import android.telephony.SubscriptionManager;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.cellbroadcastservice.CbGeoUtils.Circle;
-import com.android.cellbroadcastservice.CbGeoUtils.Polygon;
 import com.android.cellbroadcastservice.GsmSmsCbMessage.GeoFencingTriggerMessage.CellBroadcastIdentity;
 import com.android.cellbroadcastservice.SmsCbHeader.DataCodingScheme;
 import com.android.internal.annotations.VisibleForTesting;
@@ -109,7 +112,7 @@ public class GsmSmsCbMessage {
             // message identifier, warning type, and warning security information.
             // There is no field for the content/text so we get the text from the resources.
             return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP, header.getGeographicalScope(),
-                    header.getSerialNumber(), location, header.getServiceCategory(), null,
+                    header.getSerialNumber(), location, header.getServiceCategory(), null, 0,
                     getEtwsPrimaryMessage(context, header.getEtwsInfo().getWarningType()),
                     SmsCbMessage.MESSAGE_PRIORITY_EMERGENCY, header.getEtwsInfo(),
                     header.getCmasInfo(), 0, null, receivedTimeMillis, slotIndex, subId);
@@ -144,7 +147,7 @@ public class GsmSmsCbMessage {
 
             return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
                     header.getGeographicalScope(), header.getSerialNumber(), location,
-                    header.getServiceCategory(), language, body, priority,
+                    header.getServiceCategory(), language, 0, body, priority,
                     header.getEtwsInfo(), header.getCmasInfo(), maximumWaitingTimeSec, geometries,
                     receivedTimeMillis, slotIndex, subId);
         } else {
@@ -160,7 +163,7 @@ public class GsmSmsCbMessage {
 
             return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
                     header.getGeographicalScope(), header.getSerialNumber(), location,
-                    header.getServiceCategory(), language, sb.toString(), priority,
+                    header.getServiceCategory(), language, 0, sb.toString(), priority,
                     header.getEtwsInfo(), header.getCmasInfo(), 0, null, receivedTimeMillis,
                     slotIndex, subId);
         }
@@ -206,6 +209,9 @@ public class GsmSmsCbMessage {
             return new GeoFencingTriggerMessage(type, cbIdentifiers);
         } catch (Exception ex) {
             Log.e(TAG, "create geo-fencing trigger failed, ex = " + ex.toString());
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_GEO_FENCING_DATA,
+                    ex.toString());
             return null;
         }
     }
@@ -226,8 +232,13 @@ public class GsmSmsCbMessage {
         int offset = wacOffset + 2;
 
         if (offset + wacDataLength > pdu.length) {
-            throw new IllegalArgumentException("Invalid wac data, expected the length of pdu at"
-                    + "least " + offset + wacDataLength + ", actual is " + pdu.length);
+            IllegalArgumentException ex = new IllegalArgumentException(
+                    "Invalid wac data, expected the length of pdu at least " + offset
+                            + wacDataLength + ", actual is " + pdu.length);
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_UMTS_INVALID_WAC,
+                    ex.toString());
+            throw ex;
         }
 
         BitStreamReader bitReader = new BitStreamReader(pdu, offset);
@@ -268,7 +279,12 @@ public class GsmSmsCbMessage {
                     geo.add(new Circle(center, radius));
                     break;
                 default:
-                    throw new IllegalArgumentException("Unsupported geoType = " + type);
+                    IllegalArgumentException ex = new IllegalArgumentException(
+                            "Unsupported geoType = " + type);
+                    CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                            CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_UMTS_INVALID_WAC,
+                            ex.toString());
+                    throw ex;
             }
         }
         return new Pair(maximumWaitTimeSec, geo);

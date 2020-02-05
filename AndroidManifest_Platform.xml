@@ -32,6 +32,8 @@
     <uses-permission android:name="android.permission.BROADCAST_SMS" />
     <uses-permission android:name="android.permission.GRANT_RUNTIME_PERMISSIONS_TO_TELEPHONY_DEFAULTS" />
 
+    <protected-broadcast android:name="android.telephony.action.AREA_INFO_UPDATED" />
+
     <uses-sdk android:minSdkVersion="29"/>
 
     <application android:label="Module used to handle cell broadcasts."

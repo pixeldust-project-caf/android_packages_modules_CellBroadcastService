@@ -37,4 +37,13 @@
     <!-- Whether to reset alert message duplicate detection and geo-fencing check after
     reboot or toggling airplane mode -->
     <bool name="reset_on_power_cycle_or_airplane_mode">false</bool>
+
+    <!-- Cell broadcast channels for area info update. Note the channel configuration for area info
+         is needed in CellBroadcastReceiver as well.  -->
+    <integer-array name="area_info_channels">
+    </integer-array>
+
+    <!-- Package names of the area info receivers -->
+    <string-array name="config_area_info_receiver_packages" translatable="false">
+    </string-array>
 </resources>
