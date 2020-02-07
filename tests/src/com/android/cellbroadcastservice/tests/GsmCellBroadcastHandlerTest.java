@@ -78,6 +78,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
 
             // Assume the message was received 2 hours ago.
             long receivedTime = System.currentTimeMillis() - DateUtils.HOUR_IN_MILLIS * 2;
+            long locationCheckTime = receivedTime;
 
             if (uri.compareTo(Telephony.CellBroadcasts.CONTENT_URI) == 0
                     && Long.parseLong(selectionArgs[selectionArgs.length - 1]) <= receivedTime) {
@@ -94,6 +95,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                         1234,           // SERIAL_NUMBER
                         SmsCbConstants.MESSAGE_ID_CMAS_ALERT_PRESIDENTIAL_LEVEL,
                         "en",           // LANGUAGE_CODE
+                        1,              // DATA_CODING_SCHEME
                         "Test Message", // MESSAGE_BODY
                         1,              // MESSAGE_FORMAT
                         3,              // MESSAGE_PRIORITY
@@ -104,8 +106,10 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                         0,              // CMAS_SEVERITY
                         0,              // CMAS_URGENCY
                         0,              // CMAS_CERTAINTY
-                        receivedTime,
+                        receivedTime,   // RECEIVED_TIME
+                        locationCheckTime, // LOCATION_CHECK_TIME
                         false,          // MESSAGE_BROADCASTED
+                        true,           // MESSAGE_DISPLAYED
                         "",             // GEOMETRIES
                         5,              // MAXIMUM_WAIT_TIME
                 });
