@@ -77,6 +77,7 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                         1234,           // SERIAL_NUMBER
                         SmsCbConstants.MESSAGE_ID_CMAS_ALERT_PRESIDENTIAL_LEVEL,
                         "en",           // LANGUAGE_CODE
+                        1,              // DATA_CODING_SCHEME
                         "Test Message", // MESSAGE_BODY
                         1,              // MESSAGE_FORMAT
                         3,              // MESSAGE_PRIORITY
@@ -88,7 +89,9 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                         0,              // CMAS_URGENCY
                         0,              // CMAS_CERTAINTY
                         System.currentTimeMillis() - DateUtils.HOUR_IN_MILLIS * 2,
+                        System.currentTimeMillis() - DateUtils.HOUR_IN_MILLIS * 2,
                         true,           // MESSAGE_BROADCASTED
+                        true,           // MESSAGE_DISPLAYED
                         "",             // GEOMETRIES
                         5,              // MAXIMUM_WAIT_TIME
                 });
