@@ -220,7 +220,7 @@ public abstract class WakeLockStateMachine extends StateMachine {
     /**
      * BroadcastReceiver to send message to return to idle state.
      */
-    protected final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+    protected final BroadcastReceiver mOrderedBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (mReceiverCount.decrementAndGet() == 0) {

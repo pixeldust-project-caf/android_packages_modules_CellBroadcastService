@@ -149,9 +149,9 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
 
         return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP2,
                 SmsCbMessage.GEOGRAPHICAL_SCOPE_PLMN_WIDE, bData.messageId, location,
-                serviceCategory, bData.getLanguage(), 0, bData.userData.payloadStr,
-                bData.priority, null, bData.cmasWarningInfo, 0, null, System.currentTimeMillis(),
-                slotIndex, subId);
+                serviceCategory, bData.getLanguage(), bData.userData.msgEncoding,
+                bData.userData.payloadStr, bData.priority, null, bData.cmasWarningInfo, 0, null,
+                System.currentTimeMillis(), slotIndex, subId);
     }
 
     private static String toHexString(byte[] array, int offset, int length) {

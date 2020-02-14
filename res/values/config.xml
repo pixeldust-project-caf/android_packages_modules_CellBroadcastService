@@ -45,5 +45,6 @@
 
     <!-- Package names of the area info receivers -->
     <string-array name="config_area_info_receiver_packages" translatable="false">
+        <item>com.android.settings</item>
     </string-array>
 </resources>
