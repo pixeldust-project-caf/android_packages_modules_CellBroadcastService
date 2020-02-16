@@ -46,6 +46,7 @@
             android:defaultToDeviceProtectedStorage="true"
             android:directBootAware="true"
             android:persistent="true"
+            android:forceQueryable="true"
             android:process="com.android.networkstack.process">
 
         <service android:name="DefaultCellBroadcastService"
