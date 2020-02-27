@@ -32,6 +32,7 @@ import android.content.res.Resources;
 import android.location.LocationManager;
 import android.os.Handler;
 import android.os.IPowerManager;
+import android.os.IThermalService;
 import android.os.PowerManager;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -115,6 +116,7 @@ public class CellBroadcastServiceTestBase extends TestCase {
 
         // Can't directly mock power manager because it's final.
         PowerManager powerManager = new PowerManager(mMockedContext, mock(IPowerManager.class),
+                mock(IThermalService.class),
                 new Handler(TestableLooper.get(CellBroadcastServiceTestBase.this).getLooper()));
         doReturn(powerManager).when(mMockedContext).getSystemService(Context.POWER_SERVICE);
         doReturn(mMockedTelephonyManager).when(mMockedContext)
