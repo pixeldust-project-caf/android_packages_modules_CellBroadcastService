@@ -18,4 +18,7 @@
     <!-- Whether to reset alert message duplicate detection and geo-fencing check after
     reboot or toggling airplane mode -->
     <bool name="reset_on_power_cycle_or_airplane_mode">true</bool>
+
+    <!-- Whether to compare message body when performing message duplicate detection -->
+    <bool name="duplicate_compare_body">true</bool>
 </resources>
