@@ -64,6 +64,7 @@ public class CellBroadcastProviderTest extends TestCase {
     private static final int CMAS_CERTAINTY = 4;
     private static final int RECEIVED_TIME = 1562792637;
     private static final int MESSAGE_BROADCASTED = 1;
+    private static final int MESSAGE_NOT_DISPLAYED = 0;
     private static final String GEOMETRIES_COORDINATES = "polygon|0,0|0,1|1,1|1,0;circle|0,0|100";
 
     private static final String SELECT_BY_ID = CellBroadcasts._ID + "=?";
@@ -101,22 +102,22 @@ public class CellBroadcastProviderTest extends TestCase {
         assertThat(uri).isNotNull();
 
         // Change some fields of this cell broadcast.
-        int messageBroadcasted = 1 - cv.getAsInteger(CellBroadcasts.MESSAGE_BROADCASTED);
+        int messageDisplayed = 1 - cv.getAsInteger(CellBroadcasts.MESSAGE_DISPLAYED);
         int receivedTime = 1234555555;
-        cv.put(CellBroadcasts.MESSAGE_BROADCASTED, messageBroadcasted);
+        cv.put(CellBroadcasts.MESSAGE_DISPLAYED, messageDisplayed);
         cv.put(CellBroadcasts.RECEIVED_TIME, receivedTime);
         mContentResolver.update(CONTENT_URI, cv, SELECT_BY_ID,
                 new String[] { uri.getLastPathSegment() });
 
-        // Query and check if the update is successed.
+        // Query and check if the update is succeeded.
         Cursor cursor = mContentResolver.query(CONTENT_URI, QUERY_COLUMNS,
                 SELECT_BY_ID, new String[] { uri.getLastPathSegment() }, null /* orderBy */);
         cursor.moveToNext();
 
         assertThat(cursor.getInt(cursor.getColumnIndexOrThrow(CellBroadcasts.RECEIVED_TIME)))
                 .isEqualTo(receivedTime);
-        assertThat(cursor.getInt(cursor.getColumnIndexOrThrow(CellBroadcasts.MESSAGE_BROADCASTED)))
-                .isEqualTo(messageBroadcasted);
+        assertThat(cursor.getInt(cursor.getColumnIndexOrThrow(CellBroadcasts.MESSAGE_DISPLAYED)))
+                .isEqualTo(messageDisplayed);
         cursor.close();
     }
 
@@ -140,29 +141,29 @@ public class CellBroadcastProviderTest extends TestCase {
 
     @Test
     public void testGetAllCellBroadcast() {
-        // Insert some cell broadcasts which message_broadcasted is false
-        int messageNotBroadcastedCount = 5;
+        // Insert some cell broadcasts which message_displayed is false
+        int messageNotDisplayedCount = 5;
         ContentValues cv = fakeCellBroadcast();
-        cv.put(CellBroadcasts.MESSAGE_BROADCASTED, 0);
-        for (int i = 0; i < messageNotBroadcastedCount; i++) {
+        cv.put(CellBroadcasts.MESSAGE_DISPLAYED, 0);
+        for (int i = 0; i < messageNotDisplayedCount; i++) {
             mContentResolver.insert(CONTENT_URI, cv);
         }
 
-        // Insert some cell broadcasts which message_broadcasted is true
-        int messageBroadcastedCount = 6;
-        cv.put(CellBroadcasts.MESSAGE_BROADCASTED, 1);
-        for (int i = 0; i < messageBroadcastedCount; i++) {
+        // Insert some cell broadcasts which message_displayed is true
+        int messageDisplayedCount = 6;
+        cv.put(CellBroadcasts.MESSAGE_DISPLAYED, 1);
+        for (int i = 0; i < messageDisplayedCount; i++) {
             mContentResolver.insert(CONTENT_URI, cv);
         }
 
-        // Query the broadcast with message_broadcasted is false
+        // Query the broadcast with message_displayed is false
         Cursor cursor = mContentResolver.query(
                 CONTENT_URI,
                 QUERY_COLUMNS,
-                String.format("%s=?", CellBroadcasts.MESSAGE_BROADCASTED), /* selection */
+                String.format("%s=?", CellBroadcasts.MESSAGE_DISPLAYED), /* selection */
                 new String[] {"0"}, /* selectionArgs */
                 null /* sortOrder */);
-        assertThat(cursor.getCount()).isEqualTo(messageNotBroadcastedCount);
+        assertThat(cursor.getCount()).isEqualTo(messageNotDisplayedCount);
     }
 
     @Test
@@ -297,6 +298,8 @@ public class CellBroadcastProviderTest extends TestCase {
                 .isEqualTo(RECEIVED_TIME);
         assertThat(cursor.getInt(cursor.getColumnIndexOrThrow(CellBroadcasts.MESSAGE_BROADCASTED)))
                 .isEqualTo(MESSAGE_BROADCASTED);
+        assertThat(cursor.getInt(cursor.getColumnIndexOrThrow(CellBroadcasts.MESSAGE_DISPLAYED)))
+                .isEqualTo(MESSAGE_NOT_DISPLAYED);
         assertThat(cursor.getString(cursor.getColumnIndexOrThrow(
                 CellBroadcasts.GEOMETRIES))).isEqualTo(GEOMETRIES_COORDINATES);
     }
@@ -356,6 +359,7 @@ public class CellBroadcastProviderTest extends TestCase {
         cv.put(CellBroadcasts.CMAS_CERTAINTY, CMAS_CERTAINTY);
         cv.put(CellBroadcasts.RECEIVED_TIME, RECEIVED_TIME);
         cv.put(CellBroadcasts.MESSAGE_BROADCASTED, MESSAGE_BROADCASTED);
+        cv.put(CellBroadcasts.MESSAGE_DISPLAYED, MESSAGE_NOT_DISPLAYED);
         cv.put(CellBroadcasts.GEOMETRIES, GEOMETRIES_COORDINATES);
         return cv;
     }
