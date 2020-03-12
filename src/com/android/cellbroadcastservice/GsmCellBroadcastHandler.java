@@ -63,8 +63,8 @@ import java.util.stream.IntStream;
 public class GsmCellBroadcastHandler extends CellBroadcastHandler {
     private static final boolean VDBG = false;  // log CB PDU data
 
-    /** Indicates that a message is not being broadcasted. */
-    private static final String MESSAGE_NOT_BROADCASTED = "0";
+    /** Indicates that a message is not displayed. */
+    private static final String MESSAGE_NOT_DISPLAYED = "0";
 
     private final SparseArray<String> mAreaInfos = new SparseArray<>();
 
@@ -149,10 +149,10 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         }
 
         // Find the cell broadcast message identify by the message identifier and serial number
-        // and is not broadcasted.
+        // and was not displayed.
         String where = CellBroadcasts.SERVICE_CATEGORY + "=? AND "
                 + CellBroadcasts.SERIAL_NUMBER + "=? AND "
-                + CellBroadcasts.MESSAGE_BROADCASTED + "=? AND "
+                + CellBroadcasts.MESSAGE_DISPLAYED + "=? AND "
                 + CellBroadcasts.RECEIVED_TIME + ">?";
 
         ContentResolver resolver = mContext.getContentResolver();
@@ -161,7 +161,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                     CellBroadcastProvider.QUERY_COLUMNS,
                     where,
                     new String[] { Integer.toString(identity.messageIdentifier),
-                            Integer.toString(identity.serialNumber), MESSAGE_NOT_BROADCASTED,
+                            Integer.toString(identity.serialNumber), MESSAGE_NOT_DISPLAYED,
                             Long.toString(lastReceivedTime) },
                     null /* sortOrder */)) {
                 if (cursor != null) {
