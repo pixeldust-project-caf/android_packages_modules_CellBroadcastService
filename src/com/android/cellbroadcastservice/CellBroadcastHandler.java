@@ -352,6 +352,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         }
 
         boolean compareMessageBody = res.getBoolean(R.bool.duplicate_compare_body);
+        boolean compareCellLocation = res.getBoolean(R.bool.duplicate_compare_cell_location);
 
         log("Found " + cbMessages.size() + " messages since "
                 + DateFormat.getDateTimeInstance().format(dupCheckTime));
@@ -386,6 +387,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         && !Objects.equals(mServiceCategoryCrossRATMap.get(
                                 messageToCheck.getServiceCategory()),
                         message.getServiceCategory())) {
+                    // Not a dup. Check next one.
+                    continue;
+                }
+
+                // For some carriers, comparing cell location is required.
+                if (compareCellLocation && (!message.getLocation().equals(
+                        messageToCheck.getLocation()))) {
                     // Not a dup. Check next one.
                     continue;
                 }
