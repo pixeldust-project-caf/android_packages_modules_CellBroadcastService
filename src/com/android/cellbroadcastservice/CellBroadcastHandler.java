@@ -38,7 +38,6 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationRequest;
 import android.net.Uri;
-import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.Looper;
@@ -65,7 +64,6 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -144,7 +142,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     };
 
     private CellBroadcastHandler(Context context) {
-        this("CellBroadcastHandler", context, Looper.myLooper());
+        this(CellBroadcastHandler.class.getSimpleName(), context, Looper.myLooper());
     }
 
     @VisibleForTesting
@@ -605,7 +603,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     private static final class LocationRequester {
-        private static final String TAG = LocationRequester.class.getSimpleName();
+        private static final String TAG = CellBroadcastHandler.class.getSimpleName();
 
         /**
          * Use as the default maximum wait time if the cell broadcast doesn't specify the value.
@@ -614,27 +612,24 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         private static final int DEFAULT_MAXIMUM_WAIT_TIME_SEC = 30;
 
         /**
-         * Request location update from network or gps location provider. Network provider will be
-         * used if available, otherwise use the gps provider.
+         * Fused location provider, which means GPS plus network based providers (cell, wifi, etc..)
          */
-        private static final List<String> LOCATION_PROVIDERS = Arrays.asList(
-                LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER);
+        //TODO: Should make LocationManager.FUSED_PROVIDER system API in S.
+        private static final String FUSED_PROVIDER = "fused";
 
         private final LocationManager mLocationManager;
         private final List<LocationUpdateCallback> mCallbacks;
         private final Context mContext;
         private final Handler mLocationHandler;
 
-        private int mNumLocationUpdatesInProgress;
-
-        private final List<CancellationSignal> mCancellationSignals = new ArrayList<>();
+        private boolean mLocationUpdateInProgress;
 
         LocationRequester(Context context, LocationManager locationManager, Handler handler) {
             mLocationManager = locationManager;
             mCallbacks = new ArrayList<>();
             mContext = context;
             mLocationHandler = handler;
-            mNumLocationUpdatesInProgress = 0;
+            mLocationUpdateInProgress = false;
         }
 
         /**
@@ -652,29 +647,19 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         }
 
         private void onLocationUpdate(@Nullable Location location) {
-            mNumLocationUpdatesInProgress--;
-
+            mLocationUpdateInProgress = false;
             LatLng latLng = null;
             if (location != null) {
                 Log.d(TAG, "Got location update");
                 latLng = new LatLng(location.getLatitude(), location.getLongitude());
-            } else if (mNumLocationUpdatesInProgress > 0) {
-                Log.d(TAG, "Still waiting for " + mNumLocationUpdatesInProgress
-                        + " more location updates.");
-                return;
             } else {
-                Log.d(TAG, "Location is not available.");
+                Log.e(TAG, "Location is not available.");
             }
 
             for (LocationUpdateCallback callback : mCallbacks) {
                 callback.onLocationUpdate(latLng);
             }
             mCallbacks.clear();
-
-            mCancellationSignals.forEach(CancellationSignal::cancel);
-            mCancellationSignals.clear();
-
-            mNumLocationUpdatesInProgress = 0;
         }
 
         private void requestLocationUpdateInternal(@NonNull LocationUpdateCallback callback,
@@ -687,36 +672,32 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 callback.onLocationUpdate(null);
                 return;
             }
-            if (mNumLocationUpdatesInProgress == 0) {
-                for (String provider : LOCATION_PROVIDERS) {
-                    if (!mLocationManager.isProviderEnabled(provider)) {
-                        if (DBG) {
-                            Log.d(TAG, "provider " + provider + " not available");
-                        }
-                        continue;
-                    }
-                    LocationRequest request = LocationRequest.createFromDeprecatedProvider(provider,
-                            0, 0, true);
-                    if (maximumWaitTimeS == SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
-                        maximumWaitTimeS = DEFAULT_MAXIMUM_WAIT_TIME_SEC;
-                    }
-                    request.setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
 
-                    CancellationSignal signal = new CancellationSignal();
-                    mCancellationSignals.add(signal);
-                    mLocationManager.getCurrentLocation(request, signal,
-                            new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
-                    mNumLocationUpdatesInProgress++;
+            if (!mLocationUpdateInProgress) {
+                LocationRequest request = LocationRequest.createFromDeprecatedProvider(
+                        FUSED_PROVIDER, 0, 0, true);
+                if (maximumWaitTimeS == SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
+                    maximumWaitTimeS = DEFAULT_MAXIMUM_WAIT_TIME_SEC;
                 }
+                request.setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+
+                try {
+                    mLocationManager.getCurrentLocation(request, null,
+                            new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "Cannot get current location. e=" + e);
+                    callback.onLocationUpdate(null);
+                    return;
+                }
+                mLocationUpdateInProgress = true;
             }
-            if (mNumLocationUpdatesInProgress > 0) {
-                mCallbacks.add(callback);
-            } else {
-                callback.onLocationUpdate(null);
-            }
+            mCallbacks.add(callback);
         }
 
         private boolean hasPermission(String permission) {
+            // TODO: remove the check. This will always return true because cell broadcast service
+            // is running under the UID Process.NETWORK_STACK_UID, which is below 10000. It will be
+            // automatically granted with all runtime permissions.
             return mContext.checkPermission(permission, Process.myPid(), Process.myUid())
                     == PackageManager.PERMISSION_GRANTED;
         }
