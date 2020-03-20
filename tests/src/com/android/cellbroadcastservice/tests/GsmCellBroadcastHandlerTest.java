@@ -21,7 +21,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.content.ContentValues;
@@ -181,15 +180,21 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     @Test
     @SmallTest
     public void testTriggerMessage() throws Exception {
-        doReturn(false).when(mMockedLocationManager).isProviderEnabled(anyString());
         final byte[] pdu = hexStringToBytes("0001113001010010C0111204D2");
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(0, pdu);
         mTestableLooper.processAllMessages();
 
-        ArgumentCaptor<Intent> captor = ArgumentCaptor.forClass(Intent.class);
-        verify(mMockedContext).sendOrderedBroadcast(captor.capture(), anyString(), anyString(),
-                any(), any(), anyInt(), any(), any());
-        Intent intent = captor.getValue();
+        ArgumentCaptor<Consumer<Location>> consumerCaptor = ArgumentCaptor.forClass(Consumer.class);
+        verify(mMockedLocationManager).getCurrentLocation(
+                any(LocationRequest.class), any(), any(), consumerCaptor.capture());
+
+        Consumer<Location> consumer = consumerCaptor.getValue();
+        consumer.accept(Mockito.mock(Location.class));
+
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mMockedContext).sendOrderedBroadcast(intentCaptor.capture(), anyString(),
+                anyString(), any(), any(), anyInt(), any(), any());
+        Intent intent = intentCaptor.getValue();
         assertEquals(Telephony.Sms.Intents.ACTION_SMS_EMERGENCY_CB_RECEIVED, intent.getAction());
         SmsCbMessage msg = intent.getParcelableExtra("message");
 
@@ -230,7 +235,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         mTestableLooper.processAllMessages();
 
         ArgumentCaptor<Consumer<Location>> captor = ArgumentCaptor.forClass(Consumer.class);
-        verify(mMockedLocationManager, times(2)).getCurrentLocation(
+        verify(mMockedLocationManager).getCurrentLocation(
                 any(LocationRequest.class), any(), any(), captor.capture());
 
         Consumer<Location> consumer = captor.getValue();
