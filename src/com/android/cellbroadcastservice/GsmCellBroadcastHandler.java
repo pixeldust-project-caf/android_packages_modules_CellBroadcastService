@@ -237,19 +237,10 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
      * otherwise {@code false}.
      */
     private boolean handleAreaInfoMessage(int slotIndex, SmsCbMessage message) {
-        SubscriptionManager subMgr = (SubscriptionManager) mContext.getSystemService(
-                Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-
-        // Check area info message
-        int[] subIds = subMgr.getSubscriptionIds(slotIndex);
-        Resources res;
-        if (subIds != null) {
-            res = getResources(subIds[0]);
-        } else {
-            res = getResources(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID);
-        }
+        Resources res = getResources(message.getSubscriptionId());
         int[] areaInfoChannels = res.getIntArray(R.array.area_info_channels);
 
+        // Check area info message
         if (IntStream.of(areaInfoChannels).anyMatch(
                 x -> x == message.getServiceCategory())) {
             synchronized (mAreaInfos) {
