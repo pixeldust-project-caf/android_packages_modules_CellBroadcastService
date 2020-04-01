@@ -42,17 +42,17 @@
 
     <uses-sdk android:minSdkVersion="29"/>
 
-    <application android:label="Module used to handle cell broadcasts."
-            android:defaultToDeviceProtectedStorage="true"
-            android:directBootAware="true"
-            android:persistent="true"
-            android:forceQueryable="true"
-            android:process="com.android.networkstack.process">
+    <application android:label="Cell Broadcast Service"
+        android:defaultToDeviceProtectedStorage="true"
+        android:directBootAware="true"
+        android:persistent="true"
+        android:forceQueryable="true"
+        android:process="com.android.networkstack.process">
 
         <service android:name="DefaultCellBroadcastService"
-                android:process="com.android.networkstack.process"
-                android:exported="true"
-                android:permission="android.permission.BIND_CELL_BROADCAST_SERVICE">
+            android:process="com.android.networkstack.process"
+            android:exported="true"
+            android:permission="android.permission.BIND_CELL_BROADCAST_SERVICE">
             <intent-filter>
                 <action android:name="android.telephony.CellBroadcastService" />
             </intent-filter>
