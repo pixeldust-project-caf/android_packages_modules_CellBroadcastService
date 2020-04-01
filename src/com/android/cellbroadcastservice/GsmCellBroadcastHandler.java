@@ -189,9 +189,9 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         // ATIS doesn't specify the geo fencing maximum wait time for the cell broadcasts specified
         // in geo fencing trigger message. We will pick the largest maximum wait time among these
         // cell broadcasts.
-        int maximumWaitTimeSec = 0;
+        int maxWaitingTimeSec = 0;
         for (SmsCbMessage msg : cbMessages) {
-            maximumWaitTimeSec = Math.max(maximumWaitTimeSec, msg.getMaximumWaitingDuration());
+            maxWaitingTimeSec = Math.max(maxWaitingTimeSec, getMaxLocationWaitingTime(msg));
         }
 
         if (DBG) {
@@ -224,7 +224,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                     }
                 }
             }
-        }, maximumWaitTimeSec);
+        }, maxWaitingTimeSec);
         return true;
     }
 
