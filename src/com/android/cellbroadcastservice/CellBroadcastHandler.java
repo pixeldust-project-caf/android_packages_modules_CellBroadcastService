@@ -327,16 +327,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         // and is not broadcasted.
         String where = CellBroadcasts.RECEIVED_TIME + ">?";
 
-        int slotIndex = message.getSlotIndex();
-        SubscriptionManager subMgr = (SubscriptionManager) mContext.getSystemService(
-                Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-        int[] subIds = subMgr.getSubscriptionIds(slotIndex);
-        Resources res;
-        if (subIds != null) {
-            res = getResources(subIds[0]);
-        } else {
-            res = getResources(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID);
-        }
+        Resources res = getResources(message.getSubscriptionId());
 
         // Only consider cell broadcast messages received within certain period.
         // By default it's 24 hours.
