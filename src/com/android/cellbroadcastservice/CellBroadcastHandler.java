@@ -260,6 +260,21 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     /**
+     * Get the maximum time for waiting location.
+     *
+     * @param message Cell broadcast message
+     * @return The maximum waiting time in second
+     */
+    protected int getMaxLocationWaitingTime(SmsCbMessage message) {
+        int maximumTime = message.getMaximumWaitingDuration();
+        if (maximumTime == SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
+            Resources res = getResources(message.getSubscriptionId());
+            maximumTime = res.getInteger(R.integer.max_location_waiting_time);
+        }
+        return maximumTime;
+    }
+
+    /**
      * Dispatch a Cell Broadcast message to listeners.
      * @param message the Cell Broadcast to broadcast
      */
@@ -284,7 +299,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 } else {
                     performGeoFencing(message, uri, message.getGeometries(), location, slotIndex);
                 }
-            }, message.getMaximumWaitingDuration());
+            }, getMaxLocationWaitingTime(message));
         } else {
             if (DBG) {
                 log("Broadcast the message directly because no geo-fencing required, "
@@ -606,12 +621,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         private static final String TAG = CellBroadcastHandler.class.getSimpleName();
 
         /**
-         * Use as the default maximum wait time if the cell broadcast doesn't specify the value.
-         * Most of the location request should be responded within 30 seconds.
-         */
-        private static final int DEFAULT_MAXIMUM_WAIT_TIME_SEC = 30;
-
-        /**
          * Fused location provider, which means GPS plus network based providers (cell, wifi, etc..)
          */
         //TODO: Should make LocationManager.FUSED_PROVIDER system API in S.
@@ -676,9 +685,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             if (!mLocationUpdateInProgress) {
                 LocationRequest request = LocationRequest.createFromDeprecatedProvider(
                         FUSED_PROVIDER, 0, 0, true);
-                if (maximumWaitTimeS == SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
-                    maximumWaitTimeS = DEFAULT_MAXIMUM_WAIT_TIME_SEC;
-                }
                 request.setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
 
                 try {
