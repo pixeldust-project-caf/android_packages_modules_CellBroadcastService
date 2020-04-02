@@ -50,4 +50,8 @@
     <string-array name="config_area_info_receiver_packages" translatable="false">
         <item>com.android.settings</item>
     </string-array>
+
+    <!-- The maximum waiting time in seconds for location to perform
+         device based geo-fencing -->
+    <integer name="max_location_waiting_time">30</integer>
 </resources>
