@@ -189,9 +189,9 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         // ATIS doesn't specify the geo fencing maximum wait time for the cell broadcasts specified
         // in geo fencing trigger message. We will pick the largest maximum wait time among these
         // cell broadcasts.
-        int maximumWaitTimeSec = 0;
+        int maxWaitingTimeSec = 0;
         for (SmsCbMessage msg : cbMessages) {
-            maximumWaitTimeSec = Math.max(maximumWaitTimeSec, msg.getMaximumWaitingDuration());
+            maxWaitingTimeSec = Math.max(maxWaitingTimeSec, getMaxLocationWaitingTime(msg));
         }
 
         if (DBG) {
@@ -224,7 +224,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                     }
                 }
             }
-        }, maximumWaitTimeSec);
+        }, maxWaitingTimeSec);
         return true;
     }
 
@@ -237,19 +237,10 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
      * otherwise {@code false}.
      */
     private boolean handleAreaInfoMessage(int slotIndex, SmsCbMessage message) {
-        SubscriptionManager subMgr = (SubscriptionManager) mContext.getSystemService(
-                Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-
-        // Check area info message
-        int[] subIds = subMgr.getSubscriptionIds(slotIndex);
-        Resources res;
-        if (subIds != null) {
-            res = getResources(subIds[0]);
-        } else {
-            res = getResources(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID);
-        }
+        Resources res = getResources(message.getSubscriptionId());
         int[] areaInfoChannels = res.getIntArray(R.array.area_info_channels);
 
+        // Check area info message
         if (IntStream.of(areaInfoChannels).anyMatch(
                 x -> x == message.getServiceCategory())) {
             synchronized (mAreaInfos) {
