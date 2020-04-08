@@ -40,10 +40,11 @@
 
     <uses-sdk android:minSdkVersion="29"/>
 
-    <application android:label="Module used to handle cell broadcasts."
+    <application android:label="Cell Broadcast Service"
         android:defaultToDeviceProtectedStorage="true"
-        android:persistent="true"
         android:directBootAware="true"
+        android:persistent="true"
+        android:forceQueryable="true"
         android:process="com.android.phone">
 
         <service android:name="DefaultCellBroadcastService"
@@ -54,5 +55,11 @@
                 <action android:name="android.telephony.CellBroadcastService" />
             </intent-filter>
         </service>
+        <provider android:name="CellBroadcastProvider"
+                android:authorities="cellbroadcasts"
+                android:exported="true"
+                android:singleUser="true"
+                android:readPermission="android.permission.READ_CELL_BROADCASTS"
+                android:multiprocess="false" />
     </application>
 </manifest>
