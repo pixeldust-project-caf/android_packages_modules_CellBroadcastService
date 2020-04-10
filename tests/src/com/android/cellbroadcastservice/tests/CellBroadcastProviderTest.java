@@ -32,7 +32,7 @@ import android.test.mock.MockContext;
 import android.util.Log;
 
 import com.android.cellbroadcastservice.CellBroadcastProvider;
-import com.android.cellbroadcastservice.CellBroadcastProvider.PermissionChecker;
+import com.android.cellbroadcastservice.CellBroadcastProvider.CellBroadcastPermissionChecker;
 
 import junit.framework.TestCase;
 
@@ -74,14 +74,13 @@ public class CellBroadcastProviderTest extends TestCase {
     private MockContentResolver mContentResolver;
 
     @Mock
-    private PermissionChecker mMockPermissionChecker;
+    private CellBroadcastPermissionChecker mMockPermissionChecker;
 
     @Override
     protected void setUp() throws Exception {
         super.setUp();
         MockitoAnnotations.initMocks(this);
-        doReturn(true).when(mMockPermissionChecker).hasReadPermission();
-        doReturn(true).when(mMockPermissionChecker).hasWritePermission();
+        doReturn(true).when(mMockPermissionChecker).hasFullAccessPermission();
 
         mCellBroadcastProviderTestable = new CellBroadcastProviderTestable(mMockPermissionChecker);
         mContext = new MockContextWithProvider(mCellBroadcastProviderTestable);
@@ -128,7 +127,7 @@ public class CellBroadcastProviderTest extends TestCase {
         assertThat(uri).isNotNull();
 
         // Revoke the write permission
-        doReturn(false).when(mMockPermissionChecker).hasWritePermission();
+        doReturn(false).when(mMockPermissionChecker).hasFullAccessPermission();
 
         try {
             mContentResolver.update(CONTENT_URI, cv, SELECT_BY_ID,
@@ -172,7 +171,7 @@ public class CellBroadcastProviderTest extends TestCase {
         assertThat(uri).isNotNull();
 
         // Revoke the write permission
-        doReturn(false).when(mMockPermissionChecker).hasWritePermission();
+        doReturn(false).when(mMockPermissionChecker).hasFullAccessPermission();
 
         try {
             mContentResolver.delete(CONTENT_URI, SELECT_BY_ID,
@@ -238,7 +237,7 @@ public class CellBroadcastProviderTest extends TestCase {
 
     @Test
     public void testInsert_withoutWritePermission_fail() {
-        doReturn(false).when(mMockPermissionChecker).hasWritePermission();
+        doReturn(false).when(mMockPermissionChecker).hasFullAccessPermission();
 
         try {
             mContentResolver.insert(CONTENT_URI, fakeCellBroadcast());
