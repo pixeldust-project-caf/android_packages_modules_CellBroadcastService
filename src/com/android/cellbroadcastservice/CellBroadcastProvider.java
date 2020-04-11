@@ -44,21 +44,6 @@ import java.util.Arrays;
  * permission.
  */
 public class CellBroadcastProvider extends ContentProvider {
-    /** Interface for read/write permission check. */
-    public interface PermissionChecker {
-        /** Return {@code True} if the caller has the permission to write/update the database. */
-        boolean hasWritePermission();
-
-        /** Return {@code True} if the caller has the permission to query the complete database. */
-        boolean hasReadPermission();
-
-        /**
-         * Return {@code True} if the caller has the permission to query the database for
-         * cell broadcast message history.
-         */
-        boolean hasReadPermissionForHistory();
-    }
-
     private static final String TAG = CellBroadcastProvider.class.getSimpleName();
 
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
@@ -132,7 +117,7 @@ public class CellBroadcastProvider extends ContentProvider {
     };
 
     @VisibleForTesting
-    public PermissionChecker mPermissionChecker;
+    public CellBroadcastPermissionChecker mPermissionChecker;
 
     /** The database helper for this content provider. */
     @VisibleForTesting
@@ -146,7 +131,7 @@ public class CellBroadcastProvider extends ContentProvider {
     public CellBroadcastProvider() {}
 
     @VisibleForTesting
-    public CellBroadcastProvider(PermissionChecker permissionChecker) {
+    public CellBroadcastProvider(CellBroadcastPermissionChecker permissionChecker) {
         mPermissionChecker = permissionChecker;
     }
 
@@ -354,7 +339,7 @@ public class CellBroadcastProvider extends ContentProvider {
     }
 
     private void checkWritePermission() {
-        if (!mPermissionChecker.hasWritePermission()) {
+        if (!mPermissionChecker.hasFullAccessPermission()) {
             throw new SecurityException(
                     "No permission to write CellBroadcast provider");
         }
@@ -364,18 +349,15 @@ public class CellBroadcastProvider extends ContentProvider {
         int match = sUriMatcher.match(uri);
         switch (match) {
             case ALL:
-                if (!mPermissionChecker.hasReadPermission()) {
+                if (!mPermissionChecker.hasFullAccessPermission()) {
                     throw new SecurityException(
                             "No permission to read CellBroadcast provider");
                 }
                 break;
             case MESSAGE_HISTORY:
-                // TODO: if we plan to allow apps to query db in framework, we should migrate data
-                // first before deprecating app's database. otherwise users will lose all history.
-                if (!mPermissionChecker.hasReadPermissionForHistory()) {
-                    throw new SecurityException(
-                            "No permission to read CellBroadcast provider for message history");
-                }
+                // The normal read permission android.permission.READ_CELL_BROADCASTS
+                // is defined in AndroidManifest.xml and is enfored by the platform.
+                // So no additional check is required here.
                 break;
             default:
                 return;
@@ -415,35 +397,18 @@ public class CellBroadcastProvider extends ContentProvider {
         }
     }
 
-    private class CellBroadcastPermissionChecker implements PermissionChecker {
-        @Override
-        public boolean hasWritePermission() {
+    /**
+     * Cell broadcast permission checker.
+     */
+    public class CellBroadcastPermissionChecker {
+        /**
+         * @return {@code true} if the caller has permission to fully access the cell broadcast
+         * provider.
+         */
+        public boolean hasFullAccessPermission() {
             int status = getContext().checkCallingOrSelfPermission(
                     "com.android.cellbroadcastservice.FULL_ACCESS_CELL_BROADCAST_HISTORY");
-            if (status == PackageManager.PERMISSION_GRANTED) {
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public boolean hasReadPermission() {
-            int status = getContext().checkCallingOrSelfPermission(
-                    "com.android.cellbroadcastservice.FULL_ACCESS_CELL_BROADCAST_HISTORY");
-            if (status == PackageManager.PERMISSION_GRANTED) {
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public boolean hasReadPermissionForHistory() {
-            int status = getContext().checkCallingOrSelfPermission(
-                    "android.permission.RECEIVE_EMERGENCY_BROADCAST");
-            if (status == PackageManager.PERMISSION_GRANTED) {
-                return true;
-            }
-            return false;
+            return status == PackageManager.PERMISSION_GRANTED;
         }
     }
 }
