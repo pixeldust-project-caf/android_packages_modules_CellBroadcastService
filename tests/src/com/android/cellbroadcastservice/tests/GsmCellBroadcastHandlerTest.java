@@ -192,8 +192,8 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         consumer.accept(Mockito.mock(Location.class));
 
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mMockedContext).sendOrderedBroadcast(intentCaptor.capture(), anyString(),
-                anyString(), any(), any(), anyInt(), any(), any());
+        verify(mMockedContext).sendOrderedBroadcast(intentCaptor.capture(), any(),
+                (Bundle) any(), any(), any(), anyInt(), any(), any());
         Intent intent = intentCaptor.getValue();
         assertEquals(Telephony.Sms.Intents.ACTION_SMS_EMERGENCY_CB_RECEIVED, intent.getAction());
         SmsCbMessage msg = intent.getParcelableExtra("message");
