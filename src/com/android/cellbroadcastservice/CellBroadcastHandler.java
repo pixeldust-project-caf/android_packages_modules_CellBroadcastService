@@ -21,11 +21,9 @@ import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
 import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_MESSAGE_TYPE_FROM_FWK;
 
-import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Activity;
-import android.app.AppOpsManager;
 import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -38,6 +36,7 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationRequest;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.Looper;
@@ -513,8 +512,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             intent = new Intent(Telephony.Sms.Intents.ACTION_SMS_EMERGENCY_CB_RECEIVED);
             //Emergency alerts need to be delivered with high priority
             intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
-            receiverPermission = Manifest.permission.RECEIVE_EMERGENCY_BROADCAST;
-            appOp = AppOpsManager.OPSTR_RECEIVE_EMERGENCY_BROADCAST;
 
             intent.putExtra(EXTRA_MESSAGE, message);
             putPhoneIdAndSubIdExtra(mContext, intent, slotIndex);
@@ -529,8 +526,9 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     for (String pkg : testPkgs) {
                         additionalIntent.setPackage(pkg);
                         mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                                additionalIntent, receiverPermission, appOp, null,
-                                getHandler(), Activity.RESULT_OK, null, null);
+                                intent, null, (Bundle) null, null, getHandler(),
+                                Activity.RESULT_OK, null, null);
+
                     }
                 }
             }
@@ -543,8 +541,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     // Explicitly send the intent to all the configured cell broadcast receivers.
                     intent.setPackage(pkg);
                     mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                            intent, receiverPermission, appOp, mOrderedBroadcastReceiver,
-                            getHandler(), Activity.RESULT_OK, null, null);
+                            intent, null, (Bundle) null, mOrderedBroadcastReceiver, getHandler(),
+                            Activity.RESULT_OK, null, null);
                 }
             }
         } else {
