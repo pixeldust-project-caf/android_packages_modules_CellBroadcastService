@@ -63,6 +63,7 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -520,7 +521,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 // Send additional broadcast intent to the specified package. This is only for sl4a
                 // automation tests.
                 String[] testPkgs = mContext.getResources().getStringArray(
-                        R.array.config_testCellBroadcastReceiverPkgs);
+                        R.array.test_cell_broadcast_receiver_packages);
                 if (testPkgs != null) {
                     Intent additionalIntent = new Intent(intent);
                     for (String pkg : testPkgs) {
@@ -533,10 +534,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 }
             }
 
-            String[] pkgs = mContext.getResources().getStringArray(
-                    R.array.config_defaultCellBroadcastReceiverPkgs);
+            List<String> pkgs = new ArrayList<>();
+            pkgs.add(mContext.getResources().getString(
+                    R.string.default_cell_broadcast_receiver_package));
+            pkgs.addAll(Arrays.asList(mContext.getResources().getStringArray(
+                    R.array.additional_cell_broadcast_receiver_packages)));
             if (pkgs != null) {
-                mReceiverCount.addAndGet(pkgs.length);
+                mReceiverCount.addAndGet(pkgs.size());
                 for (String pkg : pkgs) {
                     // Explicitly send the intent to all the configured cell broadcast receivers.
                     intent.setPackage(pkg);
