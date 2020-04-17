@@ -19,8 +19,8 @@
         <policy type="product|system|vendor">
 
           <!-- Params from config.xml that can be overlayed -->
-          <item type="array" name="config_defaultCellBroadcastReceiverPkgs" />
-          <item type="array" name="config_testCellBroadcastReceiverPkgs" />
+          <item type="array" name="additional_cell_broadcast_receiver_packages" />
+          <item type="array" name="test_cell_broadcast_receiver_packages" />
           <item type="array" name="config_area_info_receiver_packages" />
           <!-- Params from config.xml that can be overlayed -->
         </policy>
