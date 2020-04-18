@@ -15,18 +15,22 @@
 -->
 
 <resources>
-    <!-- If this value is true, SMS encoded as octet is decoded by utf8 decoder.
-      If false, decoded by Latin decoder. -->
-    <bool name="config_sms_utf8_support">false</bool>
+    <!-- Package name of the default cell broadcast receiver -->
+    <string name="default_cell_broadcast_receiver_package" translatable="false">
+        com.android.cellbroadcastreceiver
+    </string>
 
-    <!-- Package names of the default cell broadcast receivers -->
-    <string-array name="config_defaultCellBroadcastReceiverPkgs" translatable="false">
-        <item>com.android.cellbroadcastreceiver</item>
+    <!-- Package names of additional cell broadcast receivers -->
+    <string-array name="additional_cell_broadcast_receiver_packages" translatable="false">
     </string-array>
 
     <!-- Package names of the test cell broadcast receivers, only used on debug builds -->
-    <string-array name="config_testCellBroadcastReceiverPkgs" translatable="false">
+    <string-array name="test_cell_broadcast_receiver_packages" translatable="false">
     </string-array>
+
+    <!-- If this value is true, SMS encoded as octet is decoded by utf8 decoder.
+      If false, decoded by Latin decoder. -->
+    <bool name="config_sms_utf8_support">false</bool>
 
     <!-- The message expiration time in milliseconds for duplicate detection -->
     <integer name="message_expiration_time">86400000</integer>
