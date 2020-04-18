@@ -144,17 +144,14 @@ public final class CdmaServiceCategoryProgramHandler extends WakeLockStateMachin
         intent.putParcelableArrayListExtra("program_data", programData);
         CellBroadcastHandler.putPhoneIdAndSubIdExtra(mContext, intent, phoneId);
 
-        // TODO: move this resource and its overlays to the CellBroadcastService directory
-        String[] pkgs = mContext.getResources().getStringArray(
-                R.array.config_defaultCellBroadcastReceiverPkgs);
-        mReceiverCount.addAndGet(pkgs.length);
-        for (String pkg : pkgs) {
-            intent.setPackage(pkg);
-            mContext.sendOrderedBroadcast(intent, Manifest.permission.RECEIVE_SMS,
-                    AppOpsManager.OPSTR_RECEIVE_SMS, mScpResultsReceiver,
-                    getHandler(), Activity.RESULT_OK, null, null);
-            mScpCallback.add(callback);
-        }
+        String pkg = mContext.getResources().getString(
+                R.string.default_cell_broadcast_receiver_package);
+        mReceiverCount.incrementAndGet();
+        intent.setPackage(pkg);
+        mContext.sendOrderedBroadcast(intent, Manifest.permission.RECEIVE_SMS,
+                AppOpsManager.OPSTR_RECEIVE_SMS, mScpResultsReceiver,
+                getHandler(), Activity.RESULT_OK, null, null);
+        mScpCallback.add(callback);
         return true;
     }
 
