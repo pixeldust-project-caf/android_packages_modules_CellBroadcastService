@@ -15,11 +15,6 @@
 -->
 
 <resources>
-    <!-- Package name of the default cell broadcast receiver -->
-    <string name="default_cell_broadcast_receiver_package" translatable="false">
-        com.android.cellbroadcastreceiver
-    </string>
-
     <!-- Package names of additional cell broadcast receivers -->
     <string-array name="additional_cell_broadcast_receiver_packages" translatable="false">
     </string-array>
