@@ -144,8 +144,7 @@ public final class CdmaServiceCategoryProgramHandler extends WakeLockStateMachin
         intent.putParcelableArrayListExtra("program_data", programData);
         CellBroadcastHandler.putPhoneIdAndSubIdExtra(mContext, intent, phoneId);
 
-        String pkg = mContext.getResources().getString(
-                R.string.default_cell_broadcast_receiver_package);
+        String pkg = CellBroadcastHandler.getDefaultCBRPackageName(mContext, intent);
         mReceiverCount.incrementAndGet();
         intent.setPackage(pkg);
         mContext.sendOrderedBroadcast(intent, Manifest.permission.RECEIVE_SMS,
