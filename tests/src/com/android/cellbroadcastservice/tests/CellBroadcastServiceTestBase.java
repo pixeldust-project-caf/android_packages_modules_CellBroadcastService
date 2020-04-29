@@ -27,6 +27,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.location.LocationManager;
 import android.os.Handler;
@@ -70,6 +71,9 @@ public class CellBroadcastServiceTestBase extends TestCase {
 
     @Mock
     protected LocationManager mMockedLocationManager;
+
+    @Mock
+    protected PackageManager mMockedPackageManager;
 
     private final MockContentResolver mMockedContentResolver = new MockContentResolver();
 
@@ -124,6 +128,8 @@ public class CellBroadcastServiceTestBase extends TestCase {
                 .getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         doReturn(mMockedLocationManager).when(mMockedContext)
                 .getSystemService(Context.LOCATION_SERVICE);
+        doReturn(mMockedPackageManager).when(mMockedContext)
+                .getPackageManager();
         doReturn(mMockedContext).when(mMockedContext).createContextAsUser(any(), anyInt());
         doReturn(new int[]{1}).when(mMockedSubscriptionManager).getSubscriptionIds(anyInt());
         doReturn(mMockedTelephonyManager).when(mMockedTelephonyManager)
