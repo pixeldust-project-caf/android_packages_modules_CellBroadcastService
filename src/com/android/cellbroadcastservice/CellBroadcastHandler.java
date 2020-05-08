@@ -718,17 +718,24 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             if (DBG) Log.d(TAG, "requestLocationUpdate");
             if (!hasPermission(ACCESS_FINE_LOCATION) && !hasPermission(ACCESS_COARSE_LOCATION)) {
                 if (DBG) {
-                    Log.d(TAG, "Can't request location update because of no location permission");
+                    Log.e(TAG, "Can't request location update because of no location permission");
                 }
                 callback.onLocationUpdate(null);
                 return;
             }
 
             if (!mLocationUpdateInProgress) {
-                LocationRequest request = LocationRequest.createFromDeprecatedProvider(
-                        FUSED_PROVIDER, 0, 0, true);
-                request.setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
-
+                LocationRequest request = LocationRequest.create()
+                        .setProvider(FUSED_PROVIDER)
+                        .setQuality(LocationRequest.ACCURACY_FINE)
+                        .setInterval(0)
+                        .setFastestInterval(0)
+                        .setSmallestDisplacement(0)
+                        .setNumUpdates(1)
+                        .setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+                if (DBG) {
+                    Log.d(TAG, "Location request=" + request);
+                }
                 try {
                     mLocationManager.getCurrentLocation(request, null,
                             new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
