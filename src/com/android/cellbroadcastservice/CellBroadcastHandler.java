@@ -326,6 +326,59 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     /**
+     * Check the location based on geographical scope defined in 3GPP TS 23.041 section 9.4.1.2.1.
+     *
+     * The Geographical Scope (GS) indicates the geographical area over which the Message Code
+     * is unique, and the display mode. The CBS message is not necessarily broadcast by all cells
+     * within the geographical area. When two CBS messages are received with identical Serial
+     * Numbers/Message Identifiers in two different cells, the Geographical Scope may be used to
+     * determine if the CBS messages are indeed identical.
+     *
+     * @param message The current message
+     * @param messageToCheck The older message in the database to be checked
+     * @return {@code true} if within the same area, otherwise {@code false}, which should be
+     * be considered as a new message.
+     */
+    private boolean isSameLocation(SmsCbMessage message,
+            SmsCbMessage messageToCheck) {
+        if (message.getGeographicalScope() != messageToCheck.getGeographicalScope()) {
+            return false;
+        }
+
+        // only cell wide (which means that if a message is displayed it is desirable that the
+        // message is removed from the screen when the UE selects the next cell and if any CBS
+        // message is received in the next cell it is to be regarded as "new").
+        if (message.getGeographicalScope() == SmsCbMessage.GEOGRAPHICAL_SCOPE_CELL_WIDE_IMMEDIATE
+                || message.getGeographicalScope() == SmsCbMessage.GEOGRAPHICAL_SCOPE_CELL_WIDE) {
+            return message.getLocation().isInLocationArea(messageToCheck.getLocation());
+        }
+
+        // Service Area wide (which means that a CBS message with the same Message Code and Update
+        // Number may or may not be "new" in the next cell according to whether the next cell is
+        // in the same Service Area as the current cell)
+        if (message.getGeographicalScope() == SmsCbMessage.GEOGRAPHICAL_SCOPE_LOCATION_AREA_WIDE) {
+            if (!message.getLocation().getPlmn().equals(messageToCheck.getLocation().getPlmn())) {
+                return false;
+            }
+
+            return message.getLocation().getLac() != -1
+                    && message.getLocation().getLac() == messageToCheck.getLocation().getLac();
+        }
+
+        // PLMN wide (which means that the Message Code and/or Update Number must change in the
+        // next cell, of the PLMN, for the CBS message to be "new". The CBS message is only relevant
+        // to the PLMN in which it is broadcast, so any change of PLMN (including a change to
+        // another PLMN which is an ePLMN) means the CBS message is "new")
+        if (message.getGeographicalScope() == SmsCbMessage.GEOGRAPHICAL_SCOPE_PLMN_WIDE) {
+            return !TextUtils.isEmpty(message.getLocation().getPlmn())
+                    && message.getLocation().getPlmn().equals(
+                            messageToCheck.getLocation().getPlmn());
+        }
+
+        return false;
+    }
+
+    /**
      * Check if the message is a duplicate
      *
      * @param message Cell broadcast message
@@ -371,7 +424,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         }
 
         boolean compareMessageBody = res.getBoolean(R.bool.duplicate_compare_body);
-        boolean compareCellLocation = res.getBoolean(R.bool.duplicate_compare_cell_location);
 
         log("Found " + cbMessages.size() + " messages since "
                 + DateFormat.getDateTimeInstance().format(dupCheckTime));
@@ -410,9 +462,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     continue;
                 }
 
-                // For some carriers, comparing cell location is required.
-                if (compareCellLocation && (!message.getLocation().equals(
-                        messageToCheck.getLocation()))) {
+                // Check if the message location is different
+                if (!isSameLocation(message, messageToCheck)) {
                     // Not a dup. Check next one.
                     continue;
                 }
