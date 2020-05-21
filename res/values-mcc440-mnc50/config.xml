@@ -16,5 +16,5 @@
 
 <resources>
     <!-- The message expiration time in milliseconds for duplicate detection -->
-    <integer name="message_expiration_time">600000</integer>
+    <integer name="message_expiration_time">360000</integer>
 </resources>
