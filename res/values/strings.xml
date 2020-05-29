@@ -27,5 +27,5 @@
     <string name="etws_primary_default_message_test">Emergency messages test</string>
 
     <!-- Primary ETWS (Earthquake and Tsunami Warning System) default message for others -->
-    <string name="etws_primary_default_message_others"></string>
+    <string name="etws_primary_default_message_others">Alert issued by local government. More information coming soon.</string>
 </resources>
