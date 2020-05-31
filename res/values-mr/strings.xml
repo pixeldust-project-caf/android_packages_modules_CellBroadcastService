@@ -20,5 +20,6 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"किनारपट्टीचे प्रदेश आणि नदीकाठची क्षेत्रे त्वरित रिकामी करून उंच मैदानासारख्या अधिक सुरक्षित ठिकाणी जा."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"शांत रहा आणि जवळपास निवारा शोधा."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"आणीबाणी मेसेज चाचणी"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
+    <skip />
 </resources>
