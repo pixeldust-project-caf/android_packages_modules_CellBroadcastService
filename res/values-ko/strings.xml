@@ -20,5 +20,6 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"즉시 해안 지대나 강가에서 떨어져 고지대 등 안전한 장소로 대피하세요."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"침착하게 가까운 대피소를 찾으세요."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"긴급 메시지 테스트"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
+    <skip />
 </resources>

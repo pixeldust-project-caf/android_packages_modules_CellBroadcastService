@@ -20,5 +20,6 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"तटीय क्षेत्रों और नदी के किनारे वाले क्षेत्रों को जल्द से जल्द खाली करके किसी सुरक्षित ऊंची जगह पर चले जाएं."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"शांत रहें और आस-पास शरण लेने की जगह तलाशें."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"आपातकालीन संदेश परीक्षण"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
+    <skip />
 </resources>

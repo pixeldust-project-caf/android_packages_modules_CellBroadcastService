@@ -20,5 +20,6 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Abandona de inmediato rexións costeiras e situadas na beira de ríos para dirixirte a un lugar máis seguro, como un terreo elevado."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Mantén a calma e busca refuxio cerca."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Proba de mensaxes de emerxencia"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
+    <skip />
 </resources>

@@ -20,5 +20,6 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"ಕರಾವಳಿ ಪ್ರದೇಶಗಳು ಮತ್ತು ನದಿ ತೀರಗಳಿಂದ ತಕ್ಷಣವೇ ಎತ್ತರದ ಪ್ರದೇಶಗಳಂತಹ ಸುರಕ್ಷಿತ ಸ್ಥಳಕ್ಕೆ ಹೋಗಿ."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"ಶಾಂತರಾಗಿರಿ ಮತ್ತು ಸಮೀಪದಲ್ಲೆಲ್ಲಾದರೂ ಆಶ್ರಯ ಪಡೆದುಕೊಳ್ಳಿ."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"ತುರ್ತು ಸಂದೇಶಗಳ ಪರೀಕ್ಷೆ"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
+    <skip />
 </resources>

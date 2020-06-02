@@ -20,5 +20,6 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"ភៀសខ្លួនជាបន្ទាន់ពីតំបន់ឆ្នេរ និងតំបន់តាមមាត់ទន្លេទៅកាន់កន្លែងដែលមានសុវត្ថិភាពជាងនេះ ដូចជាទីទួលណាមួយ។"</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"សូមរក្សាភាពស្ងប់ស្ងាត់ ហើយស្វែងរកជម្រកសុវត្ថិភាពដែលនៅជិត។"</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"សារសាកល្បងពេលមានអាសន្ន"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
+    <skip />
 </resources>

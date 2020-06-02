@@ -20,5 +20,6 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Verlasse so schnell wie möglich Flussufer und Küstengebiete und suche in einer höher gelegenen Umgebung Schutz."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Bleibe ruhig und suche in der Nähe Schutz."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Test der Notfallwarnungen"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
+    <skip />
 </resources>
