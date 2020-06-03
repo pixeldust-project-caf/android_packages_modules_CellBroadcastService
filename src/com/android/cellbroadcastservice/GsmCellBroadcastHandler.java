@@ -294,11 +294,17 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                 SmsCbMessage cbMessage = handleGsmBroadcastSms(header, pdu, slotIndex);
                 if (cbMessage != null) {
                     if (isDuplicate(cbMessage)) {
+                        CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
+                                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__TYPE__GSM,
+                                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__FILTER__DUPLICATE_MESSAGE);
                         return false;
                     }
 
                     if (handleAreaInfoMessage(slotIndex, cbMessage)) {
                         log("Channel " + cbMessage.getServiceCategory() + " message processed");
+                        CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
+                                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__TYPE__GSM,
+                                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__FILTER__AREA_INFO_MESSAGE);
                         return false;
                     }
 
@@ -308,11 +314,12 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                 if (VDBG) log("Not handled GSM broadcasts.");
             }
         } else {
-            loge("handleSmsMessage for GSM got object of type: "
-                    + message.obj.getClass().getName());
+            final String errorMessage = "handleSmsMessage for GSM got object of type: "
+                    + message.obj.getClass().getName();
+            loge(errorMessage);
             CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
                     CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_GSM_MESSAGE_TYPE_FROM_FWK,
-                    message.obj.getClass().getName());
+                    errorMessage);
         }
         if (message.obj instanceof SmsCbMessage) {
             return super.handleSmsMessage(message);
@@ -449,9 +456,10 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             return GsmSmsCbMessage.createSmsCbMessage(mContext, header, location, pdus, slotIndex);
 
         } catch (RuntimeException e) {
-            loge("Error in decoding SMS CB pdu", e);
+            final String errorMessage = "Error in decoding SMS CB pdu" + e.toString();
+            loge(errorMessage);
             CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
-                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_PDU, e.toString());
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_PDU, errorMessage);
             return null;
         }
     }

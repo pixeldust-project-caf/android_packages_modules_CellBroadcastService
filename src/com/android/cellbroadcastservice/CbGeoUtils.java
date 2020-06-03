@@ -74,10 +74,11 @@ public class CbGeoUtils {
                     geometries.add(new Polygon(vertices));
                     break;
                 default:
-                    Log.e(TAG, "Invalid geometry format " + geometryStr);
+                    final String errorMessage = "Invalid geometry format " + geometryStr;
+                    Log.e(TAG, errorMessage);
                     CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
                             CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_GEOMETRY_FROM_FWK,
-                            geometryStr);
+                            errorMessage);
             }
         }
         return geometries;
