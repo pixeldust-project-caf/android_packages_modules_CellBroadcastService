@@ -263,13 +263,19 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             if (!isDuplicate((SmsCbMessage) message.obj)) {
                 handleBroadcastSms((SmsCbMessage) message.obj);
                 return true;
+            } else {
+                CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
+                        CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__TYPE__CDMA,
+                        CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__FILTER__DUPLICATE_MESSAGE);
             }
             return false;
         } else {
-            loge("handleSmsMessage got object of type: " + message.obj.getClass().getName());
+            final String errorMessage =
+                    "handleSmsMessage got object of type: " + message.obj.getClass().getName();
+            loge(errorMessage);
             CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
                     CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_MESSAGE_TYPE_FROM_FWK,
-                    message.obj.getClass().getName());
+                    errorMessage);
             return false;
         }
     }
@@ -515,6 +521,15 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         if (DBG) {
             logd("Device location is outside the broadcast area "
                     + CbGeoUtils.encodeGeometriesToString(broadcastArea));
+        }
+        if (message.getMessageFormat() == SmsCbMessage.MESSAGE_FORMAT_3GPP) {
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__TYPE__GSM,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__FILTER__GEOFENCED_MESSAGE);
+        } else if (message.getMessageFormat() == SmsCbMessage.MESSAGE_FORMAT_3GPP2) {
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__TYPE__CDMA,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__FILTER__GEOFENCED_MESSAGE);
         }
 
         sendMessage(EVENT_BROADCAST_NOT_REQUIRED);
