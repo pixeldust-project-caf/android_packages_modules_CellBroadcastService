@@ -209,10 +209,11 @@ public class GsmSmsCbMessage {
             }
             return new GeoFencingTriggerMessage(type, cbIdentifiers);
         } catch (Exception ex) {
-            Log.e(TAG, "create geo-fencing trigger failed, ex = " + ex.toString());
+            final String errorMessage = "create geo-fencing trigger failed, ex = " + ex.toString();
+            Log.e(TAG, errorMessage);
             CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
                     CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_GEO_FENCING_DATA,
-                    ex.toString());
+                    errorMessage);
             return null;
         }
     }
