@@ -71,7 +71,8 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
     public void onGsmCellBroadcastSms(int slotIndex, byte[] message) {
         Log.d(TAG, "onGsmCellBroadcastSms received message on slotId=" + slotIndex);
         CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_REPORTED,
-                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__TYPE__GSM);
+                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__TYPE__GSM,
+                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__SOURCE__CB_SERVICE);
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(slotIndex, message);
     }
 
@@ -79,7 +80,8 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
     public void onCdmaCellBroadcastSms(int slotIndex, byte[] bearerData, int serviceCategory) {
         Log.d(TAG, "onCdmaCellBroadcastSms received message on slotId=" + slotIndex);
         CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_REPORTED,
-                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__TYPE__CDMA);
+                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__TYPE__CDMA,
+                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__SOURCE__CB_SERVICE);
         int[] subIds =
                 ((SubscriptionManager) getSystemService(
                         Context.TELEPHONY_SUBSCRIPTION_SERVICE)).getSubscriptionIds(slotIndex);
@@ -104,7 +106,8 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
             String originatingAddress, Consumer<Bundle> callback) {
         Log.d(TAG, "onCdmaScpMessage received message on slotId=" + slotIndex);
         CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_REPORTED,
-                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__TYPE__CDMA_SPC);
+                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__TYPE__CDMA_SPC,
+                CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_REPORTED__SOURCE__CB_SERVICE);
         mCdmaScpHandler.onCdmaScpMessage(slotIndex, new ArrayList<>(programData),
                 originatingAddress, callback);
     }
@@ -131,9 +134,10 @@ public class DefaultCellBroadcastService extends CellBroadcastService {
         try {
             bData = BearerData.decode(context, bearerData, serviceCategory);
         } catch (Exception e) {
-            Log.e(TAG, "Error decoding bearer data e=" + e.toString());
+            final String errorMessage = "Error decoding bearer data e=" + e.toString();
+            Log.e(TAG, errorMessage);
             CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
-                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__CDMA_DECODING_ERROR, e.toString());
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__CDMA_DECODING_ERROR, errorMessage);
             return null;
         }
         Log.d(TAG, "MT raw BearerData = " + toHexString(bearerData, 0, bearerData.length));
