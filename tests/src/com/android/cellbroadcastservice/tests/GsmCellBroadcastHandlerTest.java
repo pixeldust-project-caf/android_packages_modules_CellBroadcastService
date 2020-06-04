@@ -99,6 +99,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                         1,              // MESSAGE_FORMAT
                         3,              // MESSAGE_PRIORITY
                         0,              // ETWS_WARNING_TYPE
+                        0,              // ETWS_IS_PRIMARY
                         SmsCbCmasInfo.CMAS_CLASS_PRESIDENTIAL_LEVEL_ALERT, // CMAS_MESSAGE_CLASS
                         0,              // CMAS_CATEGORY
                         0,              // CMAS_RESPONSE_TYPE
