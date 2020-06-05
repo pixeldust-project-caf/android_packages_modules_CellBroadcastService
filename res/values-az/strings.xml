@@ -20,6 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Dərhal sahil bölgələrindən və çay kənarı ərazilərdən daha təhlükəsiz yüksək yerlərə evakuasiya edin."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Sakit qalın və yaxınlıqda sığınacaq axtarın."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Təcili mesaj testi"</string>
-    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
-    <skip />
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"Yerli hakimiyyət orqanı xəbərdarlıq edib. Tezliklə ətraflı məlumat veriləcək."</string>
 </resources>

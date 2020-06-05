@@ -20,6 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Qirg‘oq va daryo bo‘ylaridan yuqori tepalik kabi xavfsiz joylarga darhol evakuatsiya qiling."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Tinchlaning va yaqin-atrofdan boshpana qidiring."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Favqulodda holatlar uchun sinov xabarlari"</string>
-    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
-    <skip />
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"Ogohlantirishlar mahalliy hokimiyatdan kelgan Batafsil axborot tezda beriladi."</string>
 </resources>

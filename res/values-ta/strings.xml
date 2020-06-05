@@ -20,6 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"கடலோரப் பகுதிகளிலும் ஆற்றங்கரைகளிலும் வசிப்பவர்கள் உடனடியாகப் பாதுகாப்பான இடத்திற்குச் (மேட்டுப்பகுதி) செல்லவும்."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"பதட்டப்படாதீர்கள், அருகில் ஏதேனும் பாதுகாப்பான இடம் உள்ளதா எனப் பாருங்கள்."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"அவசரக் காலச் செய்திகளுக்கான சோதனை"</string>
-    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
-    <skip />
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"உள்ளூர் அரசாங்கத்தால் எச்சரிக்கை வழங்கப்பட்டது. விரைவில் கூடுதல் தகவல்கள் வெளியாகும்."</string>
 </resources>

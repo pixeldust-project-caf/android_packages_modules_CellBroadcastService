@@ -82,6 +82,8 @@ import java.util.stream.Stream;
 public class CellBroadcastHandler extends WakeLockStateMachine {
     private static final String TAG = "CellBroadcastHandler";
 
+    private static final boolean VDBG = false;
+
     /**
      * CellBroadcast apex name
      */
@@ -435,14 +437,17 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 + DateFormat.getDateTimeInstance().format(dupCheckTime));
         for (SmsCbMessage messageToCheck : cbMessages) {
             // If messages are from different slots, then we only compare the message body.
+            if (VDBG) log("Checking the message " + messageToCheck);
             if (message.getSlotIndex() != messageToCheck.getSlotIndex()) {
                 if (TextUtils.equals(message.getMessageBody(), messageToCheck.getMessageBody())) {
                     log("Duplicate message detected from different slot. " + message);
                     return true;
                 }
+                if (VDBG) log("Not from a same slot.");
             } else {
                 // Check serial number if message is from the same carrier.
                 if (message.getSerialNumber() != messageToCheck.getSerialNumber()) {
+                    if (VDBG) log("Serial number does not match.");
                     // Not a dup. Check next one.
                     continue;
                 }
@@ -451,6 +456,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 if (message.isEtwsMessage() && messageToCheck.isEtwsMessage()
                         && message.getEtwsWarningInfo().isPrimary()
                         != messageToCheck.getEtwsWarningInfo().isPrimary()) {
+                    if (VDBG) log("ETWS primary/secondary does not match.");
                     // Not a dup. Check next one.
                     continue;
                 }
@@ -464,12 +470,14 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         && !Objects.equals(mServiceCategoryCrossRATMap.get(
                                 messageToCheck.getServiceCategory()),
                         message.getServiceCategory())) {
+                    if (VDBG) log("GSM/CDMA category does not match.");
                     // Not a dup. Check next one.
                     continue;
                 }
 
                 // Check if the message location is different
                 if (!isSameLocation(message, messageToCheck)) {
+                    if (VDBG) log("Location does not match.");
                     // Not a dup. Check next one.
                     continue;
                 }
@@ -479,6 +487,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         message.getMessageBody(), messageToCheck.getMessageBody())) {
                     log("Duplicate message detected. " + message);
                     return true;
+                } else {
+                    if (VDBG) log("Body does not match.");
                 }
             }
         }

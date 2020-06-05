@@ -20,6 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Segera beredar dari kawasan pinggir laut dan tepi sungai dan berpindah ke tempat yang lebih selamat seperti kawasan tinggi."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Bertenang dan cari perlindungan di kawasan yang berdekatan."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Ujian mesej kecemasan"</string>
-    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
-    <skip />
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"Amaran yang dikeluarkan oleh kerajaan tempatan. Maklumat lanjut akan datang."</string>
 </resources>
