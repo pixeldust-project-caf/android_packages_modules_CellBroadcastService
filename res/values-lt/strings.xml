@@ -20,6 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Nedelsdami pasitraukite nuo pakrančių ir paupių. Eikite į saugią vietą, pvz., vietą, kuri yra aukštai."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Nesijaudinkite ir ieškokite prieglobsčio netoliese."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Kritinės padėties pranešimo bandymas"</string>
-    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
-    <skip />
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"Įspėjimą išsiuntė vietos valdžia. Daugiau informacijos bus pateikta netrukus."</string>
 </resources>

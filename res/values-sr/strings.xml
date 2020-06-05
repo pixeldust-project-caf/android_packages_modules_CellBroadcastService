@@ -20,6 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Одмах се склоните из приобалних региона и области поред река на неко безбедније место, на пример, на неко узвишење."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Останите мирни и потражите склониште у околини."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Тестирање порука у хитним случајевима"</string>
-    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
-    <skip />
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"Локална влада је издала обавештење. Ускоро ће бити још информација."</string>
 </resources>

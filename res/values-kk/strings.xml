@@ -20,6 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Жағалау аймақтан биіктеу қауіпсіз жерге дереу көшіңіз."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Сабыр сақтап, жақын жерден баспана іздеңіз."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Төтенше хабарлар сынағы"</string>
-    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
-    <skip />
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"Жергілікті басқару органының хабарландыруы. Толығырақ ақпарат жақында беріледі."</string>
 </resources>
