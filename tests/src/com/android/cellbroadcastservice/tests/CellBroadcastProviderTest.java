@@ -56,6 +56,7 @@ public class CellBroadcastProviderTest extends TestCase {
     private static final int MESSAGE_FORMAT = 1;
     private static final int MESSAGE_PRIORITY = 3;
     private static final int ETWS_WARNING_TYPE = 1;
+    private static final int ETWS_IS_PRIMARY = 0;
     private static final int CMAS_MESSAGE_CLASS = 1;
     private static final int CMAS_CATEGORY = 6;
     private static final int CMAS_RESPONSE_TYPE = 1;
@@ -281,6 +282,9 @@ public class CellBroadcastProviderTest extends TestCase {
                 .isEqualTo(MESSAGE_PRIORITY);
         assertThat(cursor.getInt(cursor.getColumnIndexOrThrow(CellBroadcasts.ETWS_WARNING_TYPE)))
                 .isEqualTo(ETWS_WARNING_TYPE);
+        // TODO: Use system API CellBroadcasts.ETWS_IS_PRIMARY in S.
+        assertThat(cursor.getInt(cursor.getColumnIndexOrThrow("etws_is_primary")))
+                .isEqualTo(ETWS_IS_PRIMARY);
         assertThat(cursor.getInt(cursor.getColumnIndexOrThrow(CellBroadcasts.CMAS_MESSAGE_CLASS)))
                 .isEqualTo(CMAS_MESSAGE_CLASS);
         assertThat(cursor.getInt(cursor.getColumnIndexOrThrow(CellBroadcasts.CMAS_CATEGORY)))
@@ -350,6 +354,8 @@ public class CellBroadcastProviderTest extends TestCase {
         cv.put(CellBroadcasts.MESSAGE_FORMAT, MESSAGE_FORMAT);
         cv.put(CellBroadcasts.MESSAGE_PRIORITY, MESSAGE_PRIORITY);
         cv.put(CellBroadcasts.ETWS_WARNING_TYPE, ETWS_WARNING_TYPE);
+        // TODO: Use system API CellBroadcasts.ETWS_IS_PRIMARY in S.
+        cv.put("etws_is_primary", ETWS_IS_PRIMARY);
         cv.put(CellBroadcasts.CMAS_MESSAGE_CLASS, CMAS_MESSAGE_CLASS);
         cv.put(CellBroadcasts.CMAS_CATEGORY, CMAS_CATEGORY);
         cv.put(CellBroadcasts.CMAS_RESPONSE_TYPE, CMAS_RESPONSE_TYPE);
