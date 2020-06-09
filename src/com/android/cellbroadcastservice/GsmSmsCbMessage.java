@@ -235,8 +235,8 @@ public class GsmSmsCbMessage {
 
         if (offset + wacDataLength > pdu.length) {
             IllegalArgumentException ex = new IllegalArgumentException(
-                    "Invalid wac data, expected the length of pdu at least " + offset
-                            + wacDataLength + ", actual is " + pdu.length);
+                    "Invalid wac data, expected the length of pdu at least "
+                            + (offset + wacDataLength) + ", actual is " + pdu.length);
             CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
                     CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_UMTS_INVALID_WAC,
                     ex.toString());
