@@ -20,6 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"തീരപ്രദേശങ്ങളിൽ നിന്നും നദിക്കരകളിൽ നിന്നും ആളുകളെ ഉടനടി ഒഴിപ്പിച്ച് ഉയർന്ന ഭൂമിയിൽ എത്തിക്കുക."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"പരിഭ്രമിക്കാതിരിക്കുക, അടുത്തുള്ള അഭയകേന്ദ്രം തേടുക."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"അടിയന്തര സന്ദേശ ടെസ്റ്റ്"</string>
-    <!-- no translation found for etws_primary_default_message_others (3271611843755121534) -->
-    <skip />
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"പ്രാദേശിക സർക്കാർ നൽകിയ മുന്നറിയിപ്പ്. കൂടുതൽ വിവരങ്ങൾ ഉടൻ."</string>
 </resources>
