@@ -20,5 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Ափամերձ և գետափնյա տարածքներից անմիջապես էվակուացվեք դեպի ավելի ապահով վայրեր (օրինակ՝ բարձրադիր գոտիներ):"</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Պահպանեք հանգստությունը և մոտակայքում ապաստարան փնտրեք:"</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Արտակարգ իրավիճակների հաղորդագրությունների թեստ"</string>
-    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"Զգուշացում՝ տեղական կառավարման մարմնի կողմից։ Լրացուցիչ տեղեկությունները հասանելի կլինեն շուտով։"</string>
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"Զգուշացում տեղական կառավարման մարմնի կողմից։ Լրացուցիչ տեղեկությունները հասանելի կլինեն շուտով։"</string>
 </resources>
