@@ -170,6 +170,8 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         assertFalse(mCellBroadcastHandler.isDuplicate(msg));
     }
 
+    @Test
+    @SmallTest
     public void testNotDuplicateCellLocationDifferent() throws Exception {
         SmsCbMessage msg = new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
                 0, 1234, new SmsCbLocation("311480", 0, 1),
