@@ -39,6 +39,7 @@ import android.location.LocationManager;
 import android.location.LocationRequest;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.Looper;
@@ -310,9 +311,11 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         Uri uri = mContext.getContentResolver().insert(CellBroadcasts.CONTENT_URI, cv);
 
         if (message.needGeoFencingCheck()) {
+            int maximumWaitingTime = getMaxLocationWaitingTime(message);
             if (DBG) {
-                log("Request location update for geo-fencing. serialNumber = "
-                        + message.getSerialNumber());
+                log("Requesting location for geo-fencing. serialNumber = "
+                        + message.getSerialNumber() + ", maximumWaitingTime = "
+                        + maximumWaitingTime);
             }
 
             requestLocationUpdate(location -> {
@@ -322,7 +325,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 } else {
                     performGeoFencing(message, uri, message.getGeometries(), location, slotIndex);
                 }
-            }, getMaxLocationWaitingTime(message));
+            }, maximumWaitingTime);
         } else {
             if (DBG) {
                 log("Broadcast the message directly because no geo-fencing required, "
@@ -750,6 +753,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         private final Handler mLocationHandler;
 
         private boolean mLocationUpdateInProgress;
+        private final Runnable mTimeoutCallback;
+        private CancellationSignal mCancellationSignal;
 
         LocationRequester(Context context, LocationManager locationManager, Handler handler) {
             mLocationManager = locationManager;
@@ -757,6 +762,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             mContext = context;
             mLocationHandler = handler;
             mLocationUpdateInProgress = false;
+            mTimeoutCallback = this::onLocationTimeout;
         }
 
         /**
@@ -773,8 +779,17 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             mLocationHandler.post(() -> requestLocationUpdateInternal(callback, maximumWaitTimeS));
         }
 
+        private void onLocationTimeout() {
+            Log.e(TAG, "Location request timeout");
+            if (mCancellationSignal != null) {
+                mCancellationSignal.cancel();
+            }
+            onLocationUpdate(null);
+        }
+
         private void onLocationUpdate(@Nullable Location location) {
             mLocationUpdateInProgress = false;
+            mLocationHandler.removeCallbacks(mTimeoutCallback);
             LatLng latLng = null;
             if (location != null) {
                 Log.d(TAG, "Got location update");
@@ -813,8 +828,15 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     Log.d(TAG, "Location request=" + request);
                 }
                 try {
-                    mLocationManager.getCurrentLocation(request, null,
+                    mCancellationSignal = new CancellationSignal();
+                    mLocationManager.getCurrentLocation(request, mCancellationSignal,
                             new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
+                    // TODO: Remove the following workaround in S. We need to enforce the timeout
+                    // before location manager adds the support for timeout value which is less
+                    // than 30 seconds. After that we can rely on location manager's timeout
+                    // mechanism.
+                    mLocationHandler.postDelayed(mTimeoutCallback,
+                            TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
                 } catch (IllegalArgumentException e) {
                     Log.e(TAG, "Cannot get current location. e=" + e);
                     callback.onLocationUpdate(null);
