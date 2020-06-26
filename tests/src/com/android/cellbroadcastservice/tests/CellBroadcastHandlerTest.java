@@ -20,14 +20,17 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 
 import android.content.ContentValues;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
+import android.os.SystemProperties;
 import android.provider.Telephony;
 import android.telephony.SmsCbCmasInfo;
 import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
+import android.telephony.SubscriptionManager;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 import android.test.suitebuilder.annotation.SmallTest;
@@ -45,6 +48,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.Map;
 
 @RunWith(AndroidTestingRunner.class)
@@ -178,5 +184,86 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                 4370, "en", "Test Message", 3,
                 null, null, 0, 1);
         assertFalse(mCellBroadcastHandler.isDuplicate(msg));
+    }
+
+    @Test
+    @SmallTest
+    public void testMakeCellBroadcastHandler() throws Exception {
+        CellBroadcastHandler cellBroadcastHandler =
+                CellBroadcastHandler.makeCellBroadcastHandler(mMockedContext);
+        // sanity test for make, just assert that returned object is not null
+        assertTrue(cellBroadcastHandler != null);
+        cellBroadcastHandler.cleanup();
+    }
+
+    @Test
+    @SmallTest
+    public void testDump() throws Exception {
+        try {
+            mCellBroadcastHandler.dump(null, new PrintWriter(new OutputStream() {
+                @Override
+                public void write(int b) throws IOException {
+                    // no implementation needed for sanity test
+                }
+            }), null);
+        } catch (Exception e) {
+            fail("Exception not expected in dump" + e);
+        }
+    }
+
+    @Test
+    @SmallTest
+    public void testPutPhoneIdAndSubIdExtra() throws Exception {
+        Intent intent = new Intent();
+        int phoneId = 0;
+        CellBroadcastHandler.putPhoneIdAndSubIdExtra(mMockedContext, intent, phoneId);
+        assertTrue(intent.getIntExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX, FAKE_SUBID + 1)
+                == FAKE_SUBID);
+        assertTrue(intent.getIntExtra("subscription", FAKE_SUBID + 1)
+                == FAKE_SUBID);
+        assertTrue(intent.getIntExtra(SubscriptionManager.EXTRA_SLOT_INDEX, phoneId + 1)
+                == phoneId);
+        assertTrue(intent.getIntExtra("phone", phoneId + 1)
+                == phoneId);
+
+        // if subId is not available, subscription extras should not be added
+        Intent intentNoSubId = new Intent();
+        doReturn(null).when(mMockedSubscriptionManager).getSubscriptionIds(anyInt());
+        CellBroadcastHandler.putPhoneIdAndSubIdExtra(mMockedContext, intentNoSubId, phoneId);
+        assertTrue(intentNoSubId.getIntExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX,
+                FAKE_SUBID + 1) == FAKE_SUBID + 1);
+        assertTrue(intentNoSubId.getIntExtra("subscription", FAKE_SUBID + 1)
+                == FAKE_SUBID + 1);
+        assertTrue(intentNoSubId.getIntExtra(SubscriptionManager.EXTRA_SLOT_INDEX, phoneId + 1)
+                == phoneId);
+        assertTrue(intentNoSubId.getIntExtra("phone", phoneId + 1)
+                == phoneId);
+    }
+
+    @Test
+    @SmallTest
+    public void testDuplicateDetection() throws Exception {
+        // if IS_DEBUGGABLE
+        if (SystemProperties.getInt("ro.debuggable", 0) == 1) {
+            SmsCbMessage msg = createSmsCbMessage(1234, 4370, "msg");
+            // message should be detected as duplicate initially
+            assertTrue(mCellBroadcastHandler.isDuplicate(msg));
+
+            // disable duplicate detection
+            Intent intent =
+                    new Intent("com.android.cellbroadcastservice.action.DUPLICATE_DETECTION");
+            intent.putExtra("enable", false);
+            sendBroadcast(intent);
+
+            // message should not be detected as duplicate
+            assertFalse(mCellBroadcastHandler.isDuplicate(msg));
+
+            // enable duplicate detection
+            intent.putExtra("enable", true);
+            sendBroadcast(intent);
+
+            // message should be detected as duplicate again
+            assertTrue(mCellBroadcastHandler.isDuplicate(msg));
+        }
     }
 }
