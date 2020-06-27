@@ -52,7 +52,8 @@ public class CellBroadcastProvider extends ContentProvider {
     private static final String DATABASE_NAME = "cellbroadcasts.db";
 
     /** Database version. */
-    private static final int DATABASE_VERSION = 4;
+    @VisibleForTesting
+    public static final int DATABASE_VERSION = 4;
 
     /** URI matcher for ContentProvider queries. */
     private static final UriMatcher sUriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -369,8 +370,9 @@ public class CellBroadcastProvider extends ContentProvider {
         }
     }
 
-    private class CellBroadcastDatabaseHelper extends SQLiteOpenHelper {
-        CellBroadcastDatabaseHelper(Context context) {
+    @VisibleForTesting
+    public static class CellBroadcastDatabaseHelper extends SQLiteOpenHelper {
+        public CellBroadcastDatabaseHelper(Context context) {
             super(context, DATABASE_NAME, null /* factory */, DATABASE_VERSION);
         }
 
