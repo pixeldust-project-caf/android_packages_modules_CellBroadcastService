@@ -79,6 +79,8 @@ public class CellBroadcastServiceTestBase extends TestCase {
 
     private final LinkedList<InstanceKey> mInstanceKeys = new LinkedList<>();
 
+    protected static final int FAKE_SUBID = 1;
+
     private static class InstanceKey {
         final Class mClass;
         final String mInstName;
@@ -123,7 +125,8 @@ public class CellBroadcastServiceTestBase extends TestCase {
         doReturn(mMockedLocationManager).when(mMockedContext)
                 .getSystemService(Context.LOCATION_SERVICE);
         doReturn(mMockedContext).when(mMockedContext).createContextAsUser(any(), anyInt());
-        doReturn(new int[]{1}).when(mMockedSubscriptionManager).getSubscriptionIds(anyInt());
+        doReturn(new int[]{FAKE_SUBID}).when(mMockedSubscriptionManager)
+                .getSubscriptionIds(anyInt());
         doReturn(mMockedTelephonyManager).when(mMockedTelephonyManager)
                 .createForSubscriptionId(anyInt());
         doAnswer(invocation -> {
