@@ -34,8 +34,14 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.provider.Telephony;
+import android.telephony.AccessNetworkConstants;
+import android.telephony.CellIdentityLte;
+import android.telephony.NetworkRegistrationInfo;
+import android.telephony.ServiceState;
 import android.telephony.SmsCbCmasInfo;
+import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
+import android.telephony.TelephonyManager;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 import android.test.suitebuilder.annotation.SmallTest;
@@ -243,5 +249,44 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
 
         verify(mMockedContext, never()).sendOrderedBroadcast(any(), anyString(), anyString(),
                 any(), any(), anyInt(), any(), any());
+    }
+
+    @Test
+    @SmallTest
+    public void testSmsCbLocation() {
+        final byte[] pdu = hexStringToBytes("01111B40110101C366701A09368545692408000000000000000"
+                + "00000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                + "000000000000000000000000000000000000000000000000B");
+
+        final String fakePlmn = "310999";
+        final int fakeTac = 1234;
+        final int fakeCid = 5678;
+
+        doReturn(fakePlmn).when(mMockedTelephonyManager).getNetworkOperator();
+        ServiceState ss = Mockito.mock(ServiceState.class);
+        doReturn(ss).when(mMockedTelephonyManager).getServiceState();
+        NetworkRegistrationInfo nri = new NetworkRegistrationInfo.Builder()
+                .setDomain(NetworkRegistrationInfo.DOMAIN_CS)
+                .setAccessNetworkTechnology(TelephonyManager.NETWORK_TYPE_LTE)
+                .setTransportType(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
+                .setRegistrationState(NetworkRegistrationInfo.REGISTRATION_STATE_HOME)
+                .setCellIdentity(new CellIdentityLte(0, 0, fakeCid, 0, fakeTac))
+                .build();
+        doReturn(nri).when(ss).getNetworkRegistrationInfo(anyInt(), anyInt());
+
+        mGsmCellBroadcastHandler.onGsmCellBroadcastSms(0, pdu);
+        mTestableLooper.processAllMessages();
+
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mMockedContext).sendOrderedBroadcast(intentCaptor.capture(), any(),
+                (Bundle) any(), any(), any(), anyInt(), any(), any());
+        Intent intent = intentCaptor.getValue();
+        assertEquals(Telephony.Sms.Intents.ACTION_SMS_EMERGENCY_CB_RECEIVED, intent.getAction());
+        SmsCbMessage msg = intent.getParcelableExtra("message");
+
+        SmsCbLocation location = msg.getLocation();
+        assertEquals(fakePlmn, location.getPlmn());
+        assertEquals(fakeTac, location.getLac());
+        assertEquals(fakeCid, location.getCid());
     }
 }
