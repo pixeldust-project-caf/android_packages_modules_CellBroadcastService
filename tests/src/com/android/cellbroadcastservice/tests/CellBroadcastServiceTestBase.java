@@ -126,6 +126,8 @@ public class CellBroadcastServiceTestBase extends TestCase {
         doReturn(powerManager).when(mMockedContext).getSystemService(Context.POWER_SERVICE);
         doReturn(mMockedTelephonyManager).when(mMockedContext)
                 .getSystemService(Context.TELEPHONY_SERVICE);
+        doReturn(Context.TELEPHONY_SERVICE).when(mMockedContext)
+                .getSystemServiceName(TelephonyManager.class);
         doReturn(mMockedSubscriptionManager).when(mMockedContext)
                 .getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         doReturn(mMockedLocationManager).when(mMockedContext)
