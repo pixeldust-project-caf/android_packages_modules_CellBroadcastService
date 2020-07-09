@@ -20,6 +20,7 @@ import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADC
 import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_GSM_MESSAGE_TYPE_FROM_FWK;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
@@ -32,11 +33,18 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.Telephony.CellBroadcasts;
+import android.telephony.AccessNetworkConstants;
 import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CellBroadcastIntents;
 import android.telephony.CellIdentity;
 import android.telephony.CellIdentityGsm;
+import android.telephony.CellIdentityLte;
+import android.telephony.CellIdentityNr;
+import android.telephony.CellIdentityTdscdma;
+import android.telephony.CellIdentityWcdma;
 import android.telephony.CellInfo;
+import android.telephony.NetworkRegistrationInfo;
+import android.telephony.ServiceState;
 import android.telephony.SmsCbLocation;
 import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
@@ -55,6 +63,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -328,21 +338,91 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         }
     }
 
-    // return the GSM cell location from the first GSM cell info
-    private Pair<Integer, Integer> getGsmLacAndCid() {
-        TelephonyManager tm =
-                (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
-        List<CellInfo> infos = tm.getAllCellInfo();
-        for (CellInfo info : infos) {
-            CellIdentity ci = info.getCellIdentity();
-            if (ci instanceof CellIdentityGsm) {
-                CellIdentityGsm ciGsm = (CellIdentityGsm) ci;
-                int lac = ciGsm.getLac() != CellInfo.UNAVAILABLE ? ciGsm.getLac() : -1;
-                int cid = ciGsm.getCid() != CellInfo.UNAVAILABLE ? ciGsm.getCid() : -1;
-                return Pair.create(lac, cid);
-            }
+    /**
+     * Get LAC (location area code for GSM/UMTS) / TAC (tracking area code for LTE/NR) and CID
+     * (Cell id) from the cell identity
+     *
+     * @param ci Cell identity
+     * @return Pair of LAC and CID. {@code null} if not available.
+     */
+    private @Nullable Pair<Integer, Integer> getLacAndCid(CellIdentity ci) {
+        if (ci == null) return null;
+        int lac = CellInfo.UNAVAILABLE;
+        int cid = CellInfo.UNAVAILABLE;
+        if (ci instanceof CellIdentityGsm) {
+            lac = ((CellIdentityGsm) ci).getLac();
+            cid = ((CellIdentityGsm) ci).getCid();
+        } else if (ci instanceof CellIdentityWcdma) {
+            lac = ((CellIdentityWcdma) ci).getLac();
+            cid = ((CellIdentityWcdma) ci).getCid();
+        } else if ((ci instanceof CellIdentityTdscdma)) {
+            lac = ((CellIdentityTdscdma) ci).getLac();
+            cid = ((CellIdentityTdscdma) ci).getCid();
+        } else if (ci instanceof CellIdentityLte) {
+            lac = ((CellIdentityLte) ci).getTac();
+            cid = ((CellIdentityLte) ci).getCi();
+        } else if (ci instanceof CellIdentityNr) {
+            lac = ((CellIdentityNr) ci).getTac();
+            cid = ((CellIdentityNr) ci).getPci();
         }
+
+        if (lac != CellInfo.UNAVAILABLE || cid != CellInfo.UNAVAILABLE) {
+            return Pair.create(lac, cid);
+        }
+
+        // When both LAC and CID are not available.
         return null;
+    }
+
+    /**
+     * Get LAC (location area code for GSM/UMTS) / TAC (tracking area code for LTE/NR) and CID
+     * (Cell id) of the registered network.
+     *
+     * @param slotIndex SIM slot index
+     *
+     * @return lac and cid. {@code null} if cell identity is not available from the registered
+     * network.
+     */
+    private @Nullable Pair<Integer, Integer> getLacAndCid(int slotIndex) {
+        TelephonyManager tm = mContext.getSystemService(TelephonyManager.class);
+        tm.createForSubscriptionId(getSubIdForPhone(mContext, slotIndex));
+
+        ServiceState serviceState = tm.getServiceState();
+
+        if (serviceState == null) return null;
+
+        // The list of cell identity to extract LAC and CID. The higher priority one will be added
+        // into the top of list.
+        List<CellIdentity> cellIdentityList = new ArrayList<>();
+
+        // CS network
+        NetworkRegistrationInfo nri = serviceState.getNetworkRegistrationInfo(
+                NetworkRegistrationInfo.DOMAIN_CS, AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+        if (nri != null) {
+            cellIdentityList.add(nri.getCellIdentity());
+        }
+
+        // PS network
+        nri = serviceState.getNetworkRegistrationInfo(
+                NetworkRegistrationInfo.DOMAIN_PS, AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+        if (nri != null) {
+            cellIdentityList.add(nri.getCellIdentity());
+        }
+
+        // When SIM is not inserted, we use the cell identity from the nearby cell. This is
+        // best effort.
+        List<CellInfo> infos = tm.getAllCellInfo();
+        if (infos != null) {
+            cellIdentityList.addAll(
+                    infos.stream().map(CellInfo::getCellIdentity).collect(Collectors.toList()));
+        }
+
+        // Return the first valid LAC and CID from the list.
+        return cellIdentityList.stream()
+                .map(this::getLacAndCid)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
     }
 
 
@@ -373,35 +453,17 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             TelephonyManager tm =
                     (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
             tm.createForSubscriptionId(getSubIdForPhone(mContext, slotIndex));
-            // TODO make a systemAPI for getNetworkOperatorForSlotIndex
-            String plmn = tm.getSimOperator();
+            String plmn = tm.getNetworkOperator();
             int lac = -1;
             int cid = -1;
-            Pair<Integer, Integer> lacAndCid = getGsmLacAndCid();
-            // Check if GSM lac and cid are available. This is required to support
-            // dual-mode devices such as CDMA/LTE devices that require support for
-            // both 3GPP and 3GPP2 format messages
+            // Get LAC and CID of the current camped cell.
+            Pair<Integer, Integer> lacAndCid = getLacAndCid(slotIndex);
             if (lacAndCid != null) {
                 lac = lacAndCid.first;
                 cid = lacAndCid.second;
             }
 
-            SmsCbLocation location;
-            switch (header.getGeographicalScope()) {
-                case SmsCbMessage.GEOGRAPHICAL_SCOPE_LOCATION_AREA_WIDE:
-                    location = new SmsCbLocation(plmn, lac, -1);
-                    break;
-
-                case SmsCbMessage.GEOGRAPHICAL_SCOPE_CELL_WIDE:
-                case SmsCbMessage.GEOGRAPHICAL_SCOPE_CELL_WIDE_IMMEDIATE:
-                    location = new SmsCbLocation(plmn, lac, cid);
-                    break;
-
-                case SmsCbMessage.GEOGRAPHICAL_SCOPE_PLMN_WIDE:
-                default:
-                    location = new SmsCbLocation(plmn, -1, -1);
-                    break;
-            }
+            SmsCbLocation location = new SmsCbLocation(plmn, lac, cid);
 
             byte[][] pdus;
             int pageCount = header.getNumberOfPages();
@@ -456,7 +518,8 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             return GsmSmsCbMessage.createSmsCbMessage(mContext, header, location, pdus, slotIndex);
 
         } catch (RuntimeException e) {
-            final String errorMessage = "Error in decoding SMS CB pdu" + e.toString();
+            final String errorMessage = "Error in decoding SMS CB pdu: " + e.toString();
+            e.printStackTrace();
             loge(errorMessage);
             CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
                     CELL_BROADCAST_MESSAGE_ERROR__TYPE__GSM_INVALID_PDU, errorMessage);
