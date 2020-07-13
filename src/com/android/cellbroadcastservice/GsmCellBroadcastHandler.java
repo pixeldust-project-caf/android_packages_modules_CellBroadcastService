@@ -285,7 +285,8 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
      * @return true if need to wait for geo-fencing or an ordered broadcast was sent.
      */
     @Override
-    protected boolean handleSmsMessage(Message message) {
+    @VisibleForTesting
+    public boolean handleSmsMessage(Message message) {
         // For GSM, message.obj should be a byte[]
         int slotIndex = message.arg1;
         if (message.obj instanceof byte[]) {

@@ -261,7 +261,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
      * @return true if need to wait for geo-fencing or an ordered broadcast was sent.
      */
     @Override
-    protected boolean handleSmsMessage(Message message) {
+    @VisibleForTesting
+    public boolean handleSmsMessage(Message message) {
         if (message.obj instanceof SmsCbMessage) {
             if (!isDuplicate((SmsCbMessage) message.obj)) {
                 handleBroadcastSms((SmsCbMessage) message.obj);

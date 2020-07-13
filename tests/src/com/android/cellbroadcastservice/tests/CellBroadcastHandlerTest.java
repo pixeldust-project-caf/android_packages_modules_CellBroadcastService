@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.content.ContentValues;
@@ -29,6 +30,7 @@ import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Message;
 import android.os.SystemProperties;
 import android.provider.Telephony;
 import android.telephony.CbGeoUtils;
@@ -65,7 +67,7 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
 
     private CellBroadcastHandler mCellBroadcastHandler;
 
-    private TestableLooper mTestbleLooper;
+    private TestableLooper mTestableLooper;
 
     @Mock
     private Map<Integer, Resources> mMockedResourcesCache;
@@ -119,16 +121,21 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         public int update(Uri url, ContentValues values, String where, String[] whereArgs) {
             return 1;
         }
+
+        @Override
+        public Uri insert(Uri uri, ContentValues values) {
+            return Uri.parse("testuri");
+        }
     }
 
     @Before
     public void setUp() throws Exception {
         super.setUp();
 
-        mTestbleLooper = TestableLooper.get(CellBroadcastHandlerTest.this);
+        mTestableLooper = TestableLooper.get(CellBroadcastHandlerTest.this);
 
         mCellBroadcastHandler = new CellBroadcastHandler("CellBroadcastHandlerUT",
-                mMockedContext, mTestbleLooper.getLooper());
+                mMockedContext, mTestableLooper.getLooper());
         ((MockContentResolver) mMockedContext.getContentResolver()).addProvider(
                 Telephony.CellBroadcasts.CONTENT_URI.getAuthority(),
                 new CellBroadcastContentProvider());
@@ -138,6 +145,9 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                 mMockedResourcesCache);
         putResources(com.android.cellbroadcastservice.R.integer.message_expiration_time,
                 (int) DateUtils.DAY_IN_MILLIS);
+        putResources(
+                com.android.cellbroadcastservice.R.array.additional_cell_broadcast_receiver_packages,
+                new String[]{});
     }
 
     @After
@@ -294,5 +304,55 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
 
         verify(mMockedContext).sendOrderedBroadcast(any(), isNull(), isNull(Bundle.class),
                 any(), any(), anyInt(), isNull(), isNull());
+    }
+
+    @Test
+    @SmallTest
+    public void testPerformGeoFencingFilteredOut() throws Exception {
+        SmsCbMessage msg = new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
+                0, 1234, new SmsCbLocation("311480", 0, 1),
+                4370, "en", "Test Message", 3,
+                null, null, 0, 1);
+        Uri uri = Uri.parse("testuri");
+        ArrayList<CbGeoUtils.Geometry> geometries = new ArrayList<>();
+        geometries.add(new CbGeoUtils.Circle(new CbGeoUtils.LatLng(10, 10), 3000));
+        geometries.add(new CbGeoUtils.Circle(new CbGeoUtils.LatLng(12, 10), 3000));
+        geometries.add(new CbGeoUtils.Circle(new CbGeoUtils.LatLng(40, 40), 3000));
+        CbGeoUtils.LatLng location = new CbGeoUtils.LatLng(-10, -10);
+
+        putResources(com.android.cellbroadcastservice.R.array
+                .additional_cell_broadcast_receiver_packages, new String[]{});
+
+        mCellBroadcastHandler.performGeoFencing(msg, uri, geometries, location,  0);
+
+        // process EVENT_BROADCAST_NOT_REQUIRED
+        mTestableLooper.processMessages(1);
+
+        verify(mMockedContext, times(0)).sendOrderedBroadcast(any(), isNull(), isNull(Bundle.class),
+                any(), any(), anyInt(), isNull(), isNull());
+    }
+
+    @Test
+    @SmallTest
+    public void testHandleSmsMessage() throws Exception {
+        SmsCbMessage msg = createSmsCbMessage(1235, 4370, "msg");
+        Message m = Message.obtain();
+        m.obj = msg;
+        mCellBroadcastHandler.handleSmsMessage(m);
+
+        verify(mMockedContext, times(1)).sendOrderedBroadcast(any(), isNull(), isNull(Bundle.class),
+                any(), any(), anyInt(), isNull(), isNull());
+
+        m.obj = createSmsCbMessage(1234, 4370, "msg");
+        mCellBroadcastHandler.handleSmsMessage(m);
+
+        // should not invoke sendOrderedBroadcast again, so verify that it has still only been
+        // called once
+        verify(mMockedContext, times(1)).sendOrderedBroadcast(any(), isNull(), isNull(Bundle.class),
+                any(), any(), anyInt(), isNull(), isNull());
+
+        // handleSmsMessage returns false if passed invalid object
+        m.obj = new Object();
+        assertFalse(mCellBroadcastHandler.handleSmsMessage(m));
     }
 }
