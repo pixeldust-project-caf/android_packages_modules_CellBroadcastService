@@ -462,12 +462,14 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
     /**
      * Holds all info about a message page needed to assemble a complete concatenated message.
      */
-    private static final class SmsCbConcatInfo {
+    @VisibleForTesting
+    public static final class SmsCbConcatInfo {
 
         private final SmsCbHeader mHeader;
         private final SmsCbLocation mLocation;
 
-        SmsCbConcatInfo(SmsCbHeader header, SmsCbLocation location) {
+        @VisibleForTesting
+        public SmsCbConcatInfo(SmsCbHeader header, SmsCbLocation location) {
             mHeader = header;
             mLocation = location;
         }
