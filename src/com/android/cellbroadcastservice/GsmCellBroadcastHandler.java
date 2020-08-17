@@ -21,10 +21,12 @@ import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADC
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.net.Uri;
@@ -76,6 +78,25 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
     /** Indicates that a message is not displayed. */
     private static final String MESSAGE_NOT_DISPLAYED = "0";
 
+    /**
+     * Intent sent from cellbroadcastreceiver to notify cellbroadcastservice that area info update
+     * is disabled/enabled.
+     */
+    private static final String ACTION_AREA_UPDATE_ENABLED =
+            "com.android.cellbroadcastreceiver.action.AREA_UPDATE_INFO_ENABLED";
+
+    /**
+     * The extra for cell ACTION_AREA_UPDATE_ENABLED enable/disable
+     */
+    private static final String EXTRA_ENABLE = "enable";
+
+    /**
+     * This permission is only granted to the cellbroadcast mainline module and thus can be
+     * used for permission check within CBR and CBS.
+     */
+    private static final String CBR_MODULE_PERMISSION =
+            "com.android.cellbroadcastservice.FULL_ACCESS_CELL_BROADCAST_HISTORY";
+
     private final SparseArray<String> mAreaInfos = new SparseArray<>();
 
     /** This map holds incomplete concatenated messages waiting for assembly. */
@@ -86,6 +107,8 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
     public GsmCellBroadcastHandler(Context context, Looper looper,
             CbSendMessageCalculatorFactory cbSendMessageCalculatorFactory) {
         super("GsmCellBroadcastHandler", context, looper, cbSendMessageCalculatorFactory);
+        mContext.registerReceiver(mReceiver, new IntentFilter(ACTION_AREA_UPDATE_ENABLED),
+                CBR_MODULE_PERMISSION, null);
     }
 
     @Override
@@ -538,6 +561,40 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             return null;
         }
     }
+
+    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (intent.getAction()) {
+                case ACTION_AREA_UPDATE_ENABLED:
+                    boolean enabled = intent.getBooleanExtra(EXTRA_ENABLE, false);
+                    log("Area update info enabled: " + enabled);
+                    if (!enabled) {
+                        String[] pkgs = mContext.getResources().getStringArray(
+                                R.array.config_area_info_receiver_packages);
+                        // notify receivers. the setting is singleton for msim devices, if areaInfo
+                        // toggle was off, it will applies for all slots/subscriptions.
+                        for(int i = 0; i < mAreaInfos.size(); i++) {
+                            int slotIndex = mAreaInfos.keyAt(i);
+                            log("Area update info disabled, clear areaInfo from: "
+                                    + mAreaInfos.get(slotIndex));
+                            for (String pkg : pkgs) {
+                                Intent areaInfoIntent = new Intent(
+                                        CellBroadcastIntents.ACTION_AREA_INFO_UPDATED);
+                                intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, slotIndex);
+                                intent.setPackage(pkg);
+                                mContext.sendBroadcastAsUser(areaInfoIntent, UserHandle.ALL,
+                                        android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+                            }
+                        }
+                        mAreaInfos.clear();
+                    }
+                    break;
+                default:
+                    log("Unhandled broadcast " + intent.getAction());
+            }
+        }
+    };
 
     /**
      * Holds all info about a message page needed to assemble a complete concatenated message.
