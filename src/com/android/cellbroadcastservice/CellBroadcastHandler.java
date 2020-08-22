@@ -20,8 +20,10 @@ import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
 import static com.android.cellbroadcastservice.CbSendMessageCalculator.SEND_MESSAGE_ACTION_AMBIGUOUS;
+import static com.android.cellbroadcastservice.CbSendMessageCalculator.SEND_MESSAGE_ACTION_DONT_SEND;
 import static com.android.cellbroadcastservice.CbSendMessageCalculator.SEND_MESSAGE_ACTION_NO_COORDINATES;
 import static com.android.cellbroadcastservice.CbSendMessageCalculator.SEND_MESSAGE_ACTION_SEND;
+import static com.android.cellbroadcastservice.CbSendMessageCalculator.SEND_MESSAGE_ACTION_SENT;
 import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_MESSAGE_TYPE_FROM_FWK;
 
 import android.annotation.NonNull;
@@ -53,7 +55,6 @@ import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.provider.Telephony;
 import android.provider.Telephony.CellBroadcasts;
-import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CbGeoUtils.LatLng;
 import android.telephony.CellBroadcastIntents;
 import android.telephony.SmsCbMessage;
@@ -123,7 +124,9 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
     /** Uses to request the location update. */
     private final LocationRequester mLocationRequester;
-    private @NonNull final CbSendMessageCalculatorFactory mCbSendMessageCalculatorFactory;
+
+    /** Used to inject new calculators during unit testing */
+    @NonNull protected final CbSendMessageCalculatorFactory mCbSendMessageCalculatorFactory;
 
     /** Timestamp of last airplane mode on */
     protected long mLastAirplaneModeTime = 0;
@@ -165,13 +168,11 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
     private CellBroadcastHandler(Context context) {
         this(CellBroadcastHandler.class.getSimpleName(), context, Looper.myLooper(),
-                new CbSendMessageCalculatorFactory());
+                new CbSendMessageCalculatorFactory(), null);
     }
 
     /**
      * Allows tests to inject new calculators
-     *
-     * @hide
      */
     @VisibleForTesting
     public static class CbSendMessageCalculatorFactory {
@@ -192,13 +193,21 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
     @VisibleForTesting
     public CellBroadcastHandler(String debugTag, Context context, Looper looper,
-            @NonNull final CbSendMessageCalculatorFactory cbSendMessageCalculatorFactory) {
+            @NonNull final CbSendMessageCalculatorFactory cbSendMessageCalculatorFactory,
+            @Nullable HandlerHelper handlerHelper) {
         super(debugTag, context, looper);
+
+        if (handlerHelper == null) {
+            // Would have preferred to not have handlerHelper has nullable and pass this through the
+            // default ctor.  Had trouble doing this because getHander() can't be called until
+            // the type is fully constructed.
+            handlerHelper = new HandlerHelper(getHandler());
+        }
         mCbSendMessageCalculatorFactory = cbSendMessageCalculatorFactory;
         mLocationRequester = new LocationRequester(
                 context,
                 (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE),
-                getHandler());
+                handlerHelper, getName());
 
         // Adding GSM / CDMA service category mapping.
         mServiceCategoryCrossRATMap = Stream.of(new Integer[][] {
@@ -348,22 +357,56 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         + maximumWaitingTime);
             }
 
-            requestLocationUpdate((location, accuracy) -> {
-                if (location == null) {
-                    // Broadcast the message directly if the location is not available.
-                    broadcastMessage(message, uri, slotIndex);
-                } else {
-                    performGeoFencing(message, uri, message.getGeometries(), location, slotIndex,
+            CbSendMessageCalculator calculator =
+                    mCbSendMessageCalculatorFactory.createNew(mContext, message.getGeometries());
+            requestLocationUpdate(new LocationUpdateCallback() {
+                @Override
+                public void onLocationUpdate(@NonNull LatLng location,
+                        float accuracy) {
+                    if (VDBG) {
+                        logd("onLocationUpdate: location=" + location
+                                + ", acc=" + accuracy + ". "  + getMessageString(message));
+                    }
+                    performGeoFencing(message, uri, calculator, location, slotIndex,
                             accuracy);
+                }
+
+                @Override
+                public void onTimeout() {
+                    geofenceCheckTimedOut(calculator, message, uri, slotIndex);
                 }
             }, maximumWaitingTime);
         } else {
             if (DBG) {
                 log("Broadcast the message directly because no geo-fencing required, "
-                        + "serialNumber = " + message.getSerialNumber()
-                        + " needGeoFencing = " + message.needGeoFencingCheck());
+                        + " needGeoFencing = " + message.needGeoFencingCheck() + ". "
+                        + getMessageString(message));
             }
             broadcastMessage(message, uri, slotIndex);
+        }
+    }
+
+    /**
+     * On timeout, we look at the calculated action and determine whether or not we should send it.
+     * @param calculator the send message calculator
+     * @param message the cell broadcast message received
+     * @param uri the message's uri
+     * @param slotIndex the slot
+     */
+    protected void geofenceCheckTimedOut(CbSendMessageCalculator calculator, SmsCbMessage message,
+            Uri uri, int slotIndex) {
+        @CbSendMessageCalculator.SendMessageAction int action = calculator.getAction();
+        if (DBG) {
+            logd("geofenceCheckTimedOut: action="
+                    + CbSendMessageCalculator.getActionString(action) + ". "
+                    + getMessageString(message));
+        }
+
+        if (action == SEND_MESSAGE_ACTION_AMBIGUOUS
+                || action == SEND_MESSAGE_ACTION_NO_COORDINATES) {
+            broadcastGeofenceMessage(message, uri, slotIndex, calculator);
+        } else if (action == SEND_MESSAGE_ACTION_DONT_SEND) {
+            geofenceMessageNotRequired(message);
         }
     }
 
@@ -414,7 +457,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         if (message.getGeographicalScope() == SmsCbMessage.GEOGRAPHICAL_SCOPE_PLMN_WIDE) {
             return !TextUtils.isEmpty(message.getLocation().getPlmn())
                     && message.getLocation().getPlmn().equals(
-                            messageToCheck.getLocation().getPlmn());
+                    messageToCheck.getLocation().getPlmn());
         }
 
         return false;
@@ -544,19 +587,27 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
      * {@code location} is inside the {@code broadcastArea}.
      * @param message the message need to geo-fencing check
      * @param uri the message's uri
-     * @param broadcastArea the broadcast area of the message
+     * @param calculator the message calculator
      * @param location current location
      * @param slotIndex the index of the slot
      * @param accuracy the accuracy of the coordinate given in meters
      */
     @VisibleForTesting
-    public void performGeoFencing(SmsCbMessage message, Uri uri, List<Geometry> broadcastArea,
-            LatLng location, int slotIndex, double accuracy) {
+    public void performGeoFencing(SmsCbMessage message, Uri uri,
+            CbSendMessageCalculator calculator, LatLng location, int slotIndex, float accuracy) {
+
+        logd(calculator.toString() + ", action="
+                + CbSendMessageCalculator.getActionString(calculator.getAction()));
+
+        if (calculator.getAction() == SEND_MESSAGE_ACTION_SENT) {
+            if (VDBG) {
+                logd("performGeoFencing:" + getMessageString(message));
+            }
+            return;
+        }
 
         if (DBG) {
-            logd("Perform geo-fencing check for message identifier = "
-                    + message.getServiceCategory()
-                    + " serialNumber = " + message.getSerialNumber());
+            logd("Perform geo-fencing check. " + getMessageString(message));
         }
 
         if (uri != null) {
@@ -566,29 +617,23 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     CellBroadcasts._ID + "=?", new String[] {uri.getLastPathSegment()});
         }
 
-        // When fully implemented, #addCoordinate will be called multiple times and not just once.
-        CbSendMessageCalculator calc =
-                mCbSendMessageCalculatorFactory.createNew(mContext, broadcastArea);
-        calc.addCoordinate(location, accuracy);
 
-        if (calc.getAction() == SEND_MESSAGE_ACTION_SEND
-                || calc.getAction() == SEND_MESSAGE_ACTION_AMBIGUOUS
-                || calc.getAction() == SEND_MESSAGE_ACTION_NO_COORDINATES) {
-            broadcastMessage(message, uri, slotIndex);
-            if (DBG) {
-                Log.d(TAG, "performGeoFencing: SENT.  action=" + calc.getActionString()
-                        + ", loc=" + location.toString() + ", acc=" + accuracy);
-                calc.getAction();
-            }
+        calculator.addCoordinate(location, accuracy);
+
+        if (calculator.getAction() == SEND_MESSAGE_ACTION_SEND) {
+            broadcastGeofenceMessage(message, uri, slotIndex, calculator);
             return;
         }
 
         if (DBG) {
-            logd("Device location is outside the broadcast area "
-                    + CbGeoUtils.encodeGeometriesToString(broadcastArea));
-            Log.d(TAG, "performGeoFencing: OUTSIDE.  action=" + calc.getAction() + ", loc="
-                    + location.toString() + ", acc=" + accuracy);
+            logd("Device location new action = "
+                    + CbSendMessageCalculator.getActionString(calculator.getAction())
+                    + ", geos=" + CbGeoUtils.encodeGeometriesToString(calculator.getFences())
+                    + ". " + getMessageString(message));
         }
+    }
+
+    protected void geofenceMessageNotRequired(SmsCbMessage message) {
         if (message.getMessageFormat() == SmsCbMessage.MESSAGE_FORMAT_3GPP) {
             CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
                     CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__TYPE__GSM,
@@ -603,10 +648,10 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     /**
-     * Request a single location update.
+     * Requests a stream of updates
      * @param callback a callback will be called when the location is available.
      * @param maximumWaitTimeSec the maximum wait time of this request. If location is not updated
-     * within the maximum wait time, {@code callback#onLocationUpadte(null)} will be called.
+     * within the maximum wait time, {@code callback#onTimeout()} will be called.
      */
     protected void requestLocationUpdate(LocationUpdateCallback callback, int maximumWaitTimeSec) {
         mLocationRequester.requestLocationUpdate(callback, maximumWaitTimeSec);
@@ -644,6 +689,31 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     /**
+     * Call when dealing with messages that are checked against a geofence.
+     *
+     * @param message the message being broadcast
+     * @param messageUri the message uri
+     * @param slotIndex the slot index
+     * @param calculator the messages send message calculator
+     */
+    protected void broadcastGeofenceMessage(@NonNull SmsCbMessage message, @Nullable Uri messageUri,
+            int slotIndex, CbSendMessageCalculator calculator) {
+        // Check that the message wasn't already SENT
+        if (calculator.getAction() == CbSendMessageCalculator.SEND_MESSAGE_ACTION_SENT) {
+            return;
+        }
+
+        if (VDBG) {
+            logd("broadcastGeofenceMessage: mark as sent. " + getMessageString(message));
+        }
+        // Mark the message as SENT
+        calculator.markAsSent();
+
+        // Broadcast the message
+        broadcastMessage(message, messageUri, slotIndex);
+    }
+
+    /**
      * Broadcast the {@code message} to the applications.
      * @param message a message need to broadcast
      * @param messageUri message's uri
@@ -652,6 +722,10 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             int slotIndex) {
         String msg;
         Intent intent;
+        if (VDBG) {
+            logd("broadcastMessage: " + getMessageString(message));
+        }
+
         if (message.isEmergencyMessage()) {
             msg = "Dispatching emergency SMS CB, SmsCbMessage is: " + message;
             log(msg);
@@ -785,110 +859,140 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     /** The callback interface of a location request. */
     public interface LocationUpdateCallback {
         /**
-         * Call when the location update is available.
-         * @param location a location in (latitude, longitude) format, or {@code null} if the
-         * location service is not available.
+         * Called when the location update is available.
+         * @param location a location in (latitude, longitude) format.
+         * @param accuracy the accuracy of the location given from location manager.  Given in
+         *                 meters.
          */
-        void onLocationUpdate(@Nullable LatLng location, double accuracy);
+        void onLocationUpdate(@NonNull LatLng location, float accuracy);
+
+        /**
+         * Called when the location timed out OR the location service is not available.
+         */
+        void onTimeout();
     }
 
     private static final class LocationRequester {
-        private static final String TAG = CellBroadcastHandler.class.getSimpleName();
-
         /**
          * Fused location provider, which means GPS plus network based providers (cell, wifi, etc..)
          */
         //TODO: Should make LocationManager.FUSED_PROVIDER system API in S.
         private static final String FUSED_PROVIDER = "fused";
 
+        /**
+         * The interval in which location requests will be sent.
+         * see more: <code>LocationRequest#setInterval</code>
+         */
+        private static final long LOCATION_REQUEST_INTERVAL_MILLIS = 1000;
+
         private final LocationManager mLocationManager;
         private final List<LocationUpdateCallback> mCallbacks;
+        private final HandlerHelper mHandlerHelper;
         private final Context mContext;
-        private final Handler mLocationHandler;
+
         private final LocationListener mLocationListener;
-        private final Runnable mTimeoutCallback;
-
         private boolean mLocationUpdateInProgress;
+        private final Runnable mTimeoutCallback;
+        private final String mDebugTag;
 
-        LocationRequester(Context context, LocationManager locationManager, Handler handler) {
+        LocationRequester(Context context, LocationManager locationManager,
+                HandlerHelper handlerHelper, String debugTag) {
             mLocationManager = locationManager;
             mCallbacks = new ArrayList<>();
             mContext = context;
-            mLocationHandler = handler;
+            mHandlerHelper = handlerHelper;
             mLocationUpdateInProgress = false;
             mLocationListener = this::onLocationUpdate;
             mTimeoutCallback = this::onLocationTimeout;
+            mDebugTag = debugTag;
         }
 
         /**
-         * Request a single location update. If the location is not available, a callback with
-         * {@code null} location will be called immediately.
-         *
-         * @param callback a callback to the response when the location is available
-         * @param maximumWaitTimeS the maximum wait time of this request. If location is not
-         * updated within the maximum wait time, {@code callback#onLocationUpadte(null)} will be
-         * called.
+         * Requests a stream of updates
+         * @param callback a callback will be called when the location is available.
+         * @param maximumWaitTimeS the maximum wait time of this request. If location is not updated
+         * within the maximum wait time, {@code callback#onTimeout()} will be called.
          */
         void requestLocationUpdate(@NonNull LocationUpdateCallback callback,
                 int maximumWaitTimeS) {
-            mLocationHandler.post(() -> requestLocationUpdateInternal(callback, maximumWaitTimeS));
+            mHandlerHelper.post(() -> requestLocationUpdateInternal(callback, maximumWaitTimeS));
         }
 
-        private void onLocationTimeout() {
-            Log.e(TAG, "Location request timeout");
-            onLocationUpdate(null);
-        }
+        private void onLocationUpdate(@NonNull Location location) {
+            if (location == null) {
+                /* onLocationUpdate is the LocationListener update method which has the @NonNull
+                   annotation over the location parameter.  Checking this use case in the off
+                   chance that null is passed in. */
+                Log.wtf(mDebugTag, "Location is never supposed to be null");
+                return;
+            }
 
-        private void onLocationUpdate(@Nullable Location location) {
-            mLocationUpdateInProgress = false;
-            mLocationHandler.removeCallbacks(mTimeoutCallback);
-            mLocationManager.removeUpdates(mLocationListener);
-            LatLng latLng = null;
-            float accuracy = 0;
-            if (location != null) {
-                Log.d(TAG, "Got location update");
-                latLng = new LatLng(location.getLatitude(), location.getLongitude());
-                accuracy = location.getAccuracy();
+            LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+            float accuracy = location.getAccuracy();
+            if (DBG) {
+                Log.d(mDebugTag, "onLocationUpdate: latLng="
+                        + latLng + ", accuracy=" + accuracy);
             } else {
-                Log.e(TAG, "Location is not available.");
+                Log.d(mDebugTag, "onLocationUpdate: Got location update");
             }
 
             for (LocationUpdateCallback callback : mCallbacks) {
                 callback.onLocationUpdate(latLng, accuracy);
             }
-            mCallbacks.clear();
+        }
+
+        /**
+         * The timeout is never cancelled and called everytime.
+         */
+        private void onLocationTimeout() {
+            Log.d(mDebugTag, "onLocationTimeout: Time's up");
+            try {
+                for (LocationUpdateCallback callback : mCallbacks) {
+                    callback.onTimeout();
+                }
+                mLocationManager.removeUpdates(mLocationListener);
+            } finally {
+                //Reset the state of location requester for the next request
+                mCallbacks.clear();
+                mLocationUpdateInProgress = false;
+            }
         }
 
         private void requestLocationUpdateInternal(@NonNull LocationUpdateCallback callback,
                 int maximumWaitTimeS) {
-            if (DBG) Log.d(TAG, "requestLocationUpdate");
+            if (DBG) Log.d(mDebugTag, "requestLocationUpdate");
             if (!hasPermission(ACCESS_FINE_LOCATION) && !hasPermission(ACCESS_COARSE_LOCATION)) {
                 if (DBG) {
-                    Log.e(TAG, "Can't request location update because of no location permission");
+                    Log.e(mDebugTag,
+                            "Can't request location update because of no location permission");
                 }
-                callback.onLocationUpdate(null, Float.NaN);
+                callback.onTimeout();
                 return;
             }
 
             if (!mLocationUpdateInProgress) {
-                LocationRequest request = LocationRequest.create()
-                        .setProvider(FUSED_PROVIDER)
-                        .setQuality(LocationRequest.ACCURACY_FINE)
-                        .setInterval(0)
-                        .setFastestInterval(0)
-                        .setSmallestDisplacement(0)
-                        .setNumUpdates(1);
-                if (DBG) {
-                    Log.d(TAG, "Location request=" + request);
-                }
                 try {
+                    // We will continue to send updates until the timeout
+                    LocationRequest request = LocationRequest.create()
+                            .setProvider(FUSED_PROVIDER)
+                            .setQuality(LocationRequest.ACCURACY_FINE)
+                            .setInterval(LOCATION_REQUEST_INTERVAL_MILLIS);
+                    if (DBG) {
+                        Log.d(mDebugTag, "Location request=" + request);
+                    }
                     mLocationManager.requestLocationUpdates(request,
-                            new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
-                    mLocationHandler.postDelayed(mTimeoutCallback,
+                            new HandlerExecutor(mHandlerHelper.getHandler()),
+                            mLocationListener);
+
+                    // TODO: Remove the following workaround in S. We need to enforce the timeout
+                    // before location manager adds the support for timeout value which is less
+                    // than 30 seconds. After that we can rely on location manager's timeout
+                    // mechanism.
+                    mHandlerHelper.postDelayed(mTimeoutCallback,
                             TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
                 } catch (IllegalArgumentException e) {
-                    Log.e(TAG, "Cannot get current location. e=" + e);
-                    callback.onLocationUpdate(null, 0.0);
+                    Log.e(mDebugTag, "Cannot get current location. e=" + e);
+                    callback.onTimeout();
                     return;
                 }
                 mLocationUpdateInProgress = true;
@@ -902,6 +1006,55 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             // automatically granted with all runtime permissions.
             return mContext.checkPermission(permission, Process.myPid(), Process.myUid())
                     == PackageManager.PERMISSION_GRANTED;
+        }
+    }
+
+    /**
+     * Provides message identifiers that are helpful when logging messages.
+     *
+     * @param message the message to log
+     * @return a helpful message
+     */
+    protected static String getMessageString(SmsCbMessage message) {
+        return "msg=("
+                + message.getServiceCategory() + ","
+                + message.getSerialNumber() + ")";
+    }
+
+
+    /**
+     * Wraps the {@code Handler} in order to mock the methods.
+     */
+    @VisibleForTesting
+    public static class HandlerHelper {
+
+        private final Handler mHandler;
+
+        public HandlerHelper(@NonNull final Handler handler) {
+            mHandler = handler;
+        }
+
+        /**
+         * Posts {@code r} to {@code handler} with a delay of {@code delayMillis}
+         *
+         * @param r the runnable callback
+         * @param delayMillis the number of milliseconds to delay
+         */
+        public void postDelayed(Runnable r, long delayMillis) {
+            mHandler.postDelayed(r, delayMillis);
+        }
+
+        /**
+         * Posts {@code r} to the underlying handler
+         *
+         * @param r the runnable callback
+         */
+        public void post(Runnable r) {
+            mHandler.post(r);
+        }
+
+        public Handler getHandler() {
+            return mHandler;
         }
     }
 }

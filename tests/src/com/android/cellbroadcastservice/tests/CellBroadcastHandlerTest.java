@@ -19,7 +19,9 @@ package com.android.cellbroadcastservice.tests;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -78,6 +80,8 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     private Map<Integer, Resources> mMockedResourcesCache;
 
     private CbSendMessageCalculatorFactoryFacade mSendMessageFactory;
+
+    private CellBroadcastHandler.HandlerHelper mHandlerHelper;
 
     private class CellBroadcastContentProvider extends MockContentProvider {
         @Override
@@ -141,9 +145,18 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
 
         mTestableLooper = TestableLooper.get(CellBroadcastHandlerTest.this);
         mSendMessageFactory = new CbSendMessageCalculatorFactoryFacade();
+        mHandlerHelper = mock(CellBroadcastHandler.HandlerHelper.class);
 
         mCellBroadcastHandler = new CellBroadcastHandler("CellBroadcastHandlerUT",
-                mMockedContext, mTestableLooper.getLooper(), mSendMessageFactory);
+                mMockedContext, mTestableLooper.getLooper(), mSendMessageFactory, mHandlerHelper);
+
+        doAnswer(invocation -> {
+            Runnable r = invocation.getArgument(0);
+            mCellBroadcastHandler.getHandler().post(r);
+            return null;
+        }).when(mHandlerHelper).post(any());
+        doReturn(mCellBroadcastHandler.getHandler()).when(mHandlerHelper).getHandler();
+
         ((MockContentResolver) mMockedContext.getContentResolver()).addProvider(
                 Telephony.CellBroadcasts.CONTENT_URI.getAuthority(),
                 new CellBroadcastContentProvider());
@@ -306,12 +319,13 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         geometries.add(new CbGeoUtils.Circle(new CbGeoUtils.LatLng(12, 10), 3000));
         geometries.add(new CbGeoUtils.Circle(new CbGeoUtils.LatLng(40, 40), 3000));
         CbGeoUtils.LatLng location = new CbGeoUtils.LatLng(10, 10);
+        CbSendMessageCalculator calculator = new CbSendMessageCalculator(
+                mMockedContext, geometries, 1);
 
         putResources(com.android.cellbroadcastservice.R.array
                 .additional_cell_broadcast_receiver_packages, new String[]{});
 
-        mCellBroadcastHandler.performGeoFencing(msg, uri, geometries, location,  0, 0);
-
+        mCellBroadcastHandler.performGeoFencing(msg, uri, calculator, location,  0, 0);
         verify(mMockedContext).sendOrderedBroadcast(any(), isNull(), isNull(Bundle.class),
                 any(), any(), anyInt(), isNull(), isNull());
     }
@@ -333,10 +347,9 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         putResources(com.android.cellbroadcastservice.R.array
                 .additional_cell_broadcast_receiver_packages, new String[]{});
 
-        mCellBroadcastHandler.performGeoFencing(msg, uri, geometries, location,  0, 0);
-
-        // process EVENT_BROADCAST_NOT_REQUIRED
-        mTestableLooper.processMessages(1);
+        CbSendMessageCalculator calculator = new CbSendMessageCalculator(
+                mMockedContext, geometries, 0);
+        mCellBroadcastHandler.performGeoFencing(msg, uri, calculator, location,  0, 1);
 
         verify(mMockedContext, times(0)).sendOrderedBroadcast(any(), isNull(), isNull(Bundle.class),
                 any(), any(), anyInt(), isNull(), isNull());
