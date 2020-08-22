@@ -34,6 +34,7 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.Telephony.CellBroadcasts;
 import android.telephony.AccessNetworkConstants;
+import android.telephony.CbGeoUtils;
 import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CellBroadcastIntents;
 import android.telephony.CellIdentity;
@@ -84,8 +85,10 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
 
     @VisibleForTesting
     public GsmCellBroadcastHandler(Context context, Looper looper,
-            CbSendMessageCalculatorFactory cbSendMessageCalculatorFactory) {
-        super("GsmCellBroadcastHandler", context, looper, cbSendMessageCalculatorFactory);
+            CbSendMessageCalculatorFactory cbSendMessageCalculatorFactory,
+            CellBroadcastHandler.HandlerHelper handlerHelper) {
+        super("GsmCellBroadcastHandler", context, looper, cbSendMessageCalculatorFactory,
+                handlerHelper);
     }
 
     @Override
@@ -123,7 +126,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
      */
     public static GsmCellBroadcastHandler makeGsmCellBroadcastHandler(Context context) {
         GsmCellBroadcastHandler handler = new GsmCellBroadcastHandler(context, Looper.myLooper(),
-                new CbSendMessageCalculatorFactory());
+                new CbSendMessageCalculatorFactory(), null);
         handler.start();
         return handler;
     }
@@ -218,22 +221,38 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             return false;
         }
 
-        requestLocationUpdate((location, accuracy) -> {
-            if (location == null) {
-                // If the location is not available, broadcast the messages directly.
+        //Create calculators for each message that will be reused on every location update.
+        CbSendMessageCalculator[] calculators = new CbSendMessageCalculator[cbMessages.size()];
+        for (int i = 0; i < cbMessages.size(); i++) {
+            List<Geometry> broadcastArea = !commonBroadcastArea.isEmpty()
+                    ? commonBroadcastArea : cbMessages.get(i).getGeometries();
+            if (broadcastArea == null) {
+                broadcastArea = new ArrayList<>();
+            }
+            calculators[i] = mCbSendMessageCalculatorFactory.createNew(mContext, broadcastArea);
+        }
+
+        requestLocationUpdate(new LocationUpdateCallback() {
+            @Override
+            public void onLocationUpdate(@NonNull CbGeoUtils.LatLng location,
+                    float accuracy) {
                 for (int i = 0; i < cbMessages.size(); i++) {
-                    broadcastMessage(cbMessages.get(i), cbMessageUris.get(i), slotIndex);
-                }
-            } else {
-                for (int i = 0; i < cbMessages.size(); i++) {
-                    List<Geometry> broadcastArea = !commonBroadcastArea.isEmpty()
-                            ? commonBroadcastArea : cbMessages.get(i).getGeometries();
-                    if (broadcastArea == null || broadcastArea.isEmpty()) {
-                        broadcastMessage(cbMessages.get(i), cbMessageUris.get(i), slotIndex);
+                    CbSendMessageCalculator calculator = calculators[i];
+                    if (calculator.getFences().isEmpty()) {
+                        broadcastGeofenceMessage(cbMessages.get(i), cbMessageUris.get(i),
+                                slotIndex, calculator);
                     } else {
-                        performGeoFencing(cbMessages.get(i), cbMessageUris.get(i), broadcastArea,
-                                location, slotIndex, accuracy);
+                        performGeoFencing(cbMessages.get(i), cbMessageUris.get(i),
+                                calculator, location, slotIndex, accuracy);
                     }
+                }
+            }
+
+            @Override
+            public void onTimeout() {
+                for (int i = 0; i < cbMessages.size(); i++) {
+                    geofenceCheckTimedOut(calculators[i], cbMessages.get(i), cbMessageUris.get(i),
+                            slotIndex);
                 }
             }
         }, maxWaitingTimeSec);
