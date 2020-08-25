@@ -83,8 +83,9 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             new HashMap<>(4);
 
     @VisibleForTesting
-    public GsmCellBroadcastHandler(Context context, Looper looper) {
-        super("GsmCellBroadcastHandler", context, looper);
+    public GsmCellBroadcastHandler(Context context, Looper looper,
+            CbSendMessageCalculatorFactory cbSendMessageCalculatorFactory) {
+        super("GsmCellBroadcastHandler", context, looper, cbSendMessageCalculatorFactory);
     }
 
     @Override
@@ -121,7 +122,8 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
      * @return the new handler
      */
     public static GsmCellBroadcastHandler makeGsmCellBroadcastHandler(Context context) {
-        GsmCellBroadcastHandler handler = new GsmCellBroadcastHandler(context, Looper.myLooper());
+        GsmCellBroadcastHandler handler = new GsmCellBroadcastHandler(context, Looper.myLooper(),
+                new CbSendMessageCalculatorFactory());
         handler.start();
         return handler;
     }
@@ -216,7 +218,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             return false;
         }
 
-        requestLocationUpdate(location -> {
+        requestLocationUpdate((location, accuracy) -> {
             if (location == null) {
                 // If the location is not available, broadcast the messages directly.
                 for (int i = 0; i < cbMessages.size(); i++) {
@@ -230,7 +232,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                         broadcastMessage(cbMessages.get(i), cbMessageUris.get(i), slotIndex);
                     } else {
                         performGeoFencing(cbMessages.get(i), cbMessageUris.get(i), broadcastArea,
-                                location, slotIndex);
+                                location, slotIndex, accuracy);
                     }
                 }
             }

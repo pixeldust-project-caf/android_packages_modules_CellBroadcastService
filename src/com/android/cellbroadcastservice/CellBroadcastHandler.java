@@ -19,6 +19,9 @@ package com.android.cellbroadcastservice;
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
+import static com.android.cellbroadcastservice.CbSendMessageCalculator.SEND_MESSAGE_ACTION_AMBIGUOUS;
+import static com.android.cellbroadcastservice.CbSendMessageCalculator.SEND_MESSAGE_ACTION_NO_COORDINATES;
+import static com.android.cellbroadcastservice.CbSendMessageCalculator.SEND_MESSAGE_ACTION_SEND;
 import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_MESSAGE_TYPE_FROM_FWK;
 
 import android.annotation.NonNull;
@@ -120,6 +123,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
     /** Uses to request the location update. */
     private final LocationRequester mLocationRequester;
+    private @NonNull final CbSendMessageCalculatorFactory mCbSendMessageCalculatorFactory;
 
     /** Timestamp of last airplane mode on */
     protected long mLastAirplaneModeTime = 0;
@@ -160,12 +164,37 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     };
 
     private CellBroadcastHandler(Context context) {
-        this(CellBroadcastHandler.class.getSimpleName(), context, Looper.myLooper());
+        this(CellBroadcastHandler.class.getSimpleName(), context, Looper.myLooper(),
+                new CbSendMessageCalculatorFactory());
+    }
+
+    /**
+     * Allows tests to inject new calculators
+     *
+     * @hide
+     */
+    @VisibleForTesting
+    public static class CbSendMessageCalculatorFactory {
+        public CbSendMessageCalculatorFactory() {
+        }
+
+        /**
+         * Creates new calculator
+         * @param context context
+         * @param fences the geo fences to use in the calculator
+         * @return a new instance of the calculator
+         */
+        public CbSendMessageCalculator createNew(@NonNull final Context context,
+                @NonNull final List<android.telephony.CbGeoUtils.Geometry> fences) {
+            return new CbSendMessageCalculator(context, fences);
+        }
     }
 
     @VisibleForTesting
-    public CellBroadcastHandler(String debugTag, Context context, Looper looper) {
+    public CellBroadcastHandler(String debugTag, Context context, Looper looper,
+            @NonNull final CbSendMessageCalculatorFactory cbSendMessageCalculatorFactory) {
         super(debugTag, context, looper);
+        mCbSendMessageCalculatorFactory = cbSendMessageCalculatorFactory;
         mLocationRequester = new LocationRequester(
                 context,
                 (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE),
@@ -318,12 +347,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         + maximumWaitingTime);
             }
 
-            requestLocationUpdate(location -> {
+            requestLocationUpdate((location, accuracy) -> {
                 if (location == null) {
                     // Broadcast the message directly if the location is not available.
                     broadcastMessage(message, uri, slotIndex);
                 } else {
-                    performGeoFencing(message, uri, message.getGeometries(), location, slotIndex);
+                    performGeoFencing(message, uri, message.getGeometries(), location, slotIndex,
+                            accuracy);
                 }
             }, maximumWaitingTime);
         } else {
@@ -507,9 +537,11 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
      * @param uri the message's uri
      * @param broadcastArea the broadcast area of the message
      * @param location current location
+     * @param slotIndex the index of the slot
+     * @param accuracy the accuracy of the coordinate given in meters
      */
     protected void performGeoFencing(SmsCbMessage message, Uri uri, List<Geometry> broadcastArea,
-            LatLng location, int slotIndex) {
+            LatLng location, int slotIndex, double accuracy) {
 
         if (DBG) {
             logd("Perform geo-fencing check for message identifier = "
@@ -524,16 +556,28 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     CellBroadcasts._ID + "=?", new String[] {uri.getLastPathSegment()});
         }
 
-        for (Geometry geo : broadcastArea) {
-            if (geo.contains(location)) {
-                broadcastMessage(message, uri, slotIndex);
-                return;
+        // When fully implemented, #addCoordinate will be called multiple times and not just once.
+        CbSendMessageCalculator calc =
+                mCbSendMessageCalculatorFactory.createNew(mContext, broadcastArea);
+        calc.addCoordinate(location, accuracy);
+
+        if (calc.getAction() == SEND_MESSAGE_ACTION_SEND
+                || calc.getAction() == SEND_MESSAGE_ACTION_AMBIGUOUS
+                || calc.getAction() == SEND_MESSAGE_ACTION_NO_COORDINATES) {
+            broadcastMessage(message, uri, slotIndex);
+            if (DBG) {
+                Log.d(TAG, "performGeoFencing: SENT.  action=" + calc.getActionString()
+                        + ", loc=" + location.toString() + ", acc=" + accuracy);
+                calc.getAction();
             }
+            return;
         }
 
         if (DBG) {
             logd("Device location is outside the broadcast area "
                     + CbGeoUtils.encodeGeometriesToString(broadcastArea));
+            Log.d(TAG, "performGeoFencing: OUTSIDE.  action=" + calc.getAction() + ", loc="
+                    + location.toString() + ", acc=" + accuracy);
         }
         if (message.getMessageFormat() == SmsCbMessage.MESSAGE_FORMAT_3GPP) {
             CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
@@ -735,7 +779,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
          * @param location a location in (latitude, longitude) format, or {@code null} if the
          * location service is not available.
          */
-        void onLocationUpdate(@Nullable LatLng location);
+        void onLocationUpdate(@Nullable LatLng location, double accuracy);
     }
 
     private static final class LocationRequester {
@@ -791,15 +835,17 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             mLocationUpdateInProgress = false;
             mLocationHandler.removeCallbacks(mTimeoutCallback);
             LatLng latLng = null;
+            float accuracy = 0;
             if (location != null) {
                 Log.d(TAG, "Got location update");
                 latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                accuracy = location.getAccuracy();
             } else {
                 Log.e(TAG, "Location is not available.");
             }
 
             for (LocationUpdateCallback callback : mCallbacks) {
-                callback.onLocationUpdate(latLng);
+                callback.onLocationUpdate(latLng, accuracy);
             }
             mCallbacks.clear();
         }
@@ -811,7 +857,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 if (DBG) {
                     Log.e(TAG, "Can't request location update because of no location permission");
                 }
-                callback.onLocationUpdate(null);
+                callback.onLocationUpdate(null, Float.NaN);
                 return;
             }
 
@@ -839,7 +885,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                             TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
                 } catch (IllegalArgumentException e) {
                     Log.e(TAG, "Cannot get current location. e=" + e);
-                    callback.onLocationUpdate(null);
+                    callback.onLocationUpdate(null, 0.0);
                     return;
                 }
                 mLocationUpdateInProgress = true;
