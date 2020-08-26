@@ -21,4 +21,11 @@
 
     <!-- Whether to compare message body when performing message duplicate detection -->
     <bool name="duplicate_compare_body">true</bool>
+
+    <!-- A toggle that controls whether or not to use the new geo fence calculation. -->
+    <bool name="use_new_geo_fence_calculation">true</bool>
+
+    <!-- The threshold in which a UE can be outside of the geofence and still
+      receive a Cell Broadcast message. The value given is in meters. -->
+    <integer name="geo_fence_threshold">50</integer>
 </resources>
