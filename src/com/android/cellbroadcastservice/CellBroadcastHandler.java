@@ -16,25 +16,32 @@
 
 package com.android.cellbroadcastservice;
 
-import android.Manifest;
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_MESSAGE_TYPE_FROM_FWK;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Activity;
-import android.app.AppOpsManager;
 import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
+import android.location.LocationRequest;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
@@ -50,12 +57,12 @@ import android.telephony.SmsCbMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.cdma.CdmaSmsCbProgramData;
 import android.text.TextUtils;
-import android.text.format.DateUtils;
 import android.util.LocalLog;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.io.File;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.text.DateFormat;
@@ -65,6 +72,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -73,6 +81,20 @@ import java.util.stream.Stream;
  * completes and our result receiver is called.
  */
 public class CellBroadcastHandler extends WakeLockStateMachine {
+    private static final String TAG = "CellBroadcastHandler";
+
+    private static final boolean VDBG = false;
+
+    /**
+     * CellBroadcast apex name
+     */
+    private static final String CB_APEX_NAME = "com.android.cellbroadcast";
+
+    /**
+     * Path where CB apex is mounted (/apex/com.android.cellbroadcast)
+     */
+    private static final String CB_APEX_PATH = new File("/apex", CB_APEX_NAME).getAbsolutePath();
+
     private static final String EXTRA_MESSAGE = "message";
 
     /**
@@ -97,7 +119,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     private static final boolean IS_DEBUGGABLE = SystemProperties.getInt("ro.debuggable", 0) == 1;
 
     /** Uses to request the location update. */
-    public final LocationRequester mLocationRequester;
+    private final LocationRequester mLocationRequester;
 
     /** Timestamp of last airplane mode on */
     protected long mLastAirplaneModeTime = 0;
@@ -138,7 +160,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     };
 
     private CellBroadcastHandler(Context context) {
-        this("CellBroadcastHandler", context, Looper.myLooper());
+        this(CellBroadcastHandler.class.getSimpleName(), context, Looper.myLooper());
     }
 
     @VisibleForTesting
@@ -147,7 +169,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         mLocationRequester = new LocationRequester(
                 context,
                 (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE),
-                getHandler().getLooper());
+                getHandler());
 
         // Adding GSM / CDMA service category mapping.
         mServiceCategoryCrossRATMap = Stream.of(new Integer[][] {
@@ -244,12 +266,36 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             if (!isDuplicate((SmsCbMessage) message.obj)) {
                 handleBroadcastSms((SmsCbMessage) message.obj);
                 return true;
+            } else {
+                CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
+                        CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__TYPE__CDMA,
+                        CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__FILTER__DUPLICATE_MESSAGE);
             }
             return false;
         } else {
-            loge("handleMessage got object of type: " + message.obj.getClass().getName());
+            final String errorMessage =
+                    "handleSmsMessage got object of type: " + message.obj.getClass().getName();
+            loge(errorMessage);
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                    CELL_BROADCAST_MESSAGE_ERROR__TYPE__UNEXPECTED_CDMA_MESSAGE_TYPE_FROM_FWK,
+                    errorMessage);
             return false;
         }
+    }
+
+    /**
+     * Get the maximum time for waiting location.
+     *
+     * @param message Cell broadcast message
+     * @return The maximum waiting time in second
+     */
+    protected int getMaxLocationWaitingTime(SmsCbMessage message) {
+        int maximumTime = message.getMaximumWaitingDuration();
+        if (maximumTime == SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
+            Resources res = getResources(message.getSubscriptionId());
+            maximumTime = res.getInteger(R.integer.max_location_waiting_time);
+        }
+        return maximumTime;
     }
 
     /**
@@ -265,9 +311,11 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         Uri uri = mContext.getContentResolver().insert(CellBroadcasts.CONTENT_URI, cv);
 
         if (message.needGeoFencingCheck()) {
+            int maximumWaitingTime = getMaxLocationWaitingTime(message);
             if (DBG) {
-                log("Request location update for geo-fencing. serialNumber = "
-                        + message.getSerialNumber());
+                log("Requesting location for geo-fencing. serialNumber = "
+                        + message.getSerialNumber() + ", maximumWaitingTime = "
+                        + maximumWaitingTime);
             }
 
             requestLocationUpdate(location -> {
@@ -277,7 +325,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 } else {
                     performGeoFencing(message, uri, message.getGeometries(), location, slotIndex);
                 }
-            }, message.getMaximumWaitingDuration());
+            }, maximumWaitingTime);
         } else {
             if (DBG) {
                 log("Broadcast the message directly because no geo-fencing required, "
@@ -286,6 +334,59 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             }
             broadcastMessage(message, uri, slotIndex);
         }
+    }
+
+    /**
+     * Check the location based on geographical scope defined in 3GPP TS 23.041 section 9.4.1.2.1.
+     *
+     * The Geographical Scope (GS) indicates the geographical area over which the Message Code
+     * is unique, and the display mode. The CBS message is not necessarily broadcast by all cells
+     * within the geographical area. When two CBS messages are received with identical Serial
+     * Numbers/Message Identifiers in two different cells, the Geographical Scope may be used to
+     * determine if the CBS messages are indeed identical.
+     *
+     * @param message The current message
+     * @param messageToCheck The older message in the database to be checked
+     * @return {@code true} if within the same area, otherwise {@code false}, which should be
+     * be considered as a new message.
+     */
+    private boolean isSameLocation(SmsCbMessage message,
+            SmsCbMessage messageToCheck) {
+        if (message.getGeographicalScope() != messageToCheck.getGeographicalScope()) {
+            return false;
+        }
+
+        // only cell wide (which means that if a message is displayed it is desirable that the
+        // message is removed from the screen when the UE selects the next cell and if any CBS
+        // message is received in the next cell it is to be regarded as "new").
+        if (message.getGeographicalScope() == SmsCbMessage.GEOGRAPHICAL_SCOPE_CELL_WIDE_IMMEDIATE
+                || message.getGeographicalScope() == SmsCbMessage.GEOGRAPHICAL_SCOPE_CELL_WIDE) {
+            return message.getLocation().isInLocationArea(messageToCheck.getLocation());
+        }
+
+        // Service Area wide (which means that a CBS message with the same Message Code and Update
+        // Number may or may not be "new" in the next cell according to whether the next cell is
+        // in the same Service Area as the current cell)
+        if (message.getGeographicalScope() == SmsCbMessage.GEOGRAPHICAL_SCOPE_LOCATION_AREA_WIDE) {
+            if (!message.getLocation().getPlmn().equals(messageToCheck.getLocation().getPlmn())) {
+                return false;
+            }
+
+            return message.getLocation().getLac() != -1
+                    && message.getLocation().getLac() == messageToCheck.getLocation().getLac();
+        }
+
+        // PLMN wide (which means that the Message Code and/or Update Number must change in the
+        // next cell, of the PLMN, for the CBS message to be "new". The CBS message is only relevant
+        // to the PLMN in which it is broadcast, so any change of PLMN (including a change to
+        // another PLMN which is an ePLMN) means the CBS message is "new")
+        if (message.getGeographicalScope() == SmsCbMessage.GEOGRAPHICAL_SCOPE_PLMN_WIDE) {
+            return !TextUtils.isEmpty(message.getLocation().getPlmn())
+                    && message.getLocation().getPlmn().equals(
+                            messageToCheck.getLocation().getPlmn());
+        }
+
+        return false;
     }
 
     /**
@@ -305,16 +406,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         // and is not broadcasted.
         String where = CellBroadcasts.RECEIVED_TIME + ">?";
 
-        int slotIndex = message.getSlotIndex();
-        SubscriptionManager subMgr = (SubscriptionManager) mContext.getSystemService(
-                Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-        int[] subIds = subMgr.getSubscriptionIds(slotIndex);
-        Resources res;
-        if (subIds != null) {
-            res = getResources(subIds[0]);
-        } else {
-            res = getResources(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID);
-        }
+        Resources res = getResources(message.getSubscriptionId());
 
         // Only consider cell broadcast messages received within certain period.
         // By default it's 24 hours.
@@ -343,20 +435,22 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         }
 
         boolean compareMessageBody = res.getBoolean(R.bool.duplicate_compare_body);
-        boolean compareCellLocation = res.getBoolean(R.bool.duplicate_compare_cell_location);
 
         log("Found " + cbMessages.size() + " messages since "
                 + DateFormat.getDateTimeInstance().format(dupCheckTime));
         for (SmsCbMessage messageToCheck : cbMessages) {
             // If messages are from different slots, then we only compare the message body.
+            if (VDBG) log("Checking the message " + messageToCheck);
             if (message.getSlotIndex() != messageToCheck.getSlotIndex()) {
                 if (TextUtils.equals(message.getMessageBody(), messageToCheck.getMessageBody())) {
                     log("Duplicate message detected from different slot. " + message);
                     return true;
                 }
+                if (VDBG) log("Not from a same slot.");
             } else {
                 // Check serial number if message is from the same carrier.
                 if (message.getSerialNumber() != messageToCheck.getSerialNumber()) {
+                    if (VDBG) log("Serial number does not match.");
                     // Not a dup. Check next one.
                     continue;
                 }
@@ -365,6 +459,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 if (message.isEtwsMessage() && messageToCheck.isEtwsMessage()
                         && message.getEtwsWarningInfo().isPrimary()
                         != messageToCheck.getEtwsWarningInfo().isPrimary()) {
+                    if (VDBG) log("ETWS primary/secondary does not match.");
                     // Not a dup. Check next one.
                     continue;
                 }
@@ -378,13 +473,14 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         && !Objects.equals(mServiceCategoryCrossRATMap.get(
                                 messageToCheck.getServiceCategory()),
                         message.getServiceCategory())) {
+                    if (VDBG) log("GSM/CDMA category does not match.");
                     // Not a dup. Check next one.
                     continue;
                 }
 
-                // For some carriers, comparing cell location is required.
-                if (compareCellLocation && (!message.getLocation().equals(
-                        messageToCheck.getLocation()))) {
+                // Check if the message location is different
+                if (!isSameLocation(message, messageToCheck)) {
+                    if (VDBG) log("Location does not match.");
                     // Not a dup. Check next one.
                     continue;
                 }
@@ -394,6 +490,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         message.getMessageBody(), messageToCheck.getMessageBody())) {
                     log("Duplicate message detected. " + message);
                     return true;
+                } else {
+                    if (VDBG) log("Body does not match.");
                 }
             }
         }
@@ -436,6 +534,15 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         if (DBG) {
             logd("Device location is outside the broadcast area "
                     + CbGeoUtils.encodeGeometriesToString(broadcastArea));
+        }
+        if (message.getMessageFormat() == SmsCbMessage.MESSAGE_FORMAT_3GPP) {
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__TYPE__GSM,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__FILTER__GEOFENCED_MESSAGE);
+        } else if (message.getMessageFormat() == SmsCbMessage.MESSAGE_FORMAT_3GPP2) {
+            CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_FILTERED,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__TYPE__CDMA,
+                    CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_FILTERED__FILTER__GEOFENCED_MESSAGE);
         }
 
         sendMessage(EVENT_BROADCAST_NOT_REQUIRED);
@@ -489,8 +596,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
      */
     protected void broadcastMessage(@NonNull SmsCbMessage message, @Nullable Uri messageUri,
             int slotIndex) {
-        String receiverPermission;
-        String appOp;
         String msg;
         Intent intent;
         if (message.isEmergencyMessage()) {
@@ -500,8 +605,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             intent = new Intent(Telephony.Sms.Intents.ACTION_SMS_EMERGENCY_CB_RECEIVED);
             //Emergency alerts need to be delivered with high priority
             intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
-            receiverPermission = Manifest.permission.RECEIVE_EMERGENCY_BROADCAST;
-            appOp = AppOpsManager.OPSTR_RECEIVE_EMERGENCY_BROADCAST;
 
             intent.putExtra(EXTRA_MESSAGE, message);
             putPhoneIdAndSubIdExtra(mContext, intent, slotIndex);
@@ -510,28 +613,31 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 // Send additional broadcast intent to the specified package. This is only for sl4a
                 // automation tests.
                 String[] testPkgs = mContext.getResources().getStringArray(
-                        R.array.config_testCellBroadcastReceiverPkgs);
+                        R.array.test_cell_broadcast_receiver_packages);
                 if (testPkgs != null) {
                     Intent additionalIntent = new Intent(intent);
                     for (String pkg : testPkgs) {
                         additionalIntent.setPackage(pkg);
                         mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                                additionalIntent, receiverPermission, appOp, null,
-                                getHandler(), Activity.RESULT_OK, null, null);
+                                intent, null, (Bundle) null, null, getHandler(),
+                                Activity.RESULT_OK, null, null);
+
                     }
                 }
             }
 
-            String[] pkgs = mContext.getResources().getStringArray(
-                    R.array.config_defaultCellBroadcastReceiverPkgs);
+            List<String> pkgs = new ArrayList<>();
+            pkgs.add(getDefaultCBRPackageName(mContext, intent));
+            pkgs.addAll(Arrays.asList(mContext.getResources().getStringArray(
+                    R.array.additional_cell_broadcast_receiver_packages)));
             if (pkgs != null) {
-                mReceiverCount.addAndGet(pkgs.length);
+                mReceiverCount.addAndGet(pkgs.size());
                 for (String pkg : pkgs) {
                     // Explicitly send the intent to all the configured cell broadcast receivers.
                     intent.setPackage(pkg);
                     mContext.createContextAsUser(UserHandle.ALL, 0).sendOrderedBroadcast(
-                            intent, receiverPermission, appOp, mOrderedBroadcastReceiver,
-                            getHandler(), Activity.RESULT_OK, null, null);
+                            intent, null, (Bundle) null, mOrderedBroadcastReceiver, getHandler(),
+                            Activity.RESULT_OK, null, null);
                 }
             }
         } else {
@@ -553,6 +659,43 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             mContext.getContentResolver().update(CellBroadcasts.CONTENT_URI, cv,
                     CellBroadcasts._ID + "=?", new String[] {messageUri.getLastPathSegment()});
         }
+    }
+
+    /**
+     * Checks if the app's path starts with CB_APEX_PATH
+     */
+    private static boolean isAppInCBApex(ApplicationInfo appInfo) {
+        return appInfo.sourceDir.startsWith(CB_APEX_PATH);
+    }
+
+    /**
+     * Find the name of the default CBR package. The criteria is that it belongs to CB apex and
+     * handles the given intent.
+     */
+    static String getDefaultCBRPackageName(Context context, Intent intent) {
+        PackageManager packageManager = context.getPackageManager();
+        List<ResolveInfo> cbrPackages = packageManager.queryBroadcastReceivers(intent, 0);
+
+        // remove apps that don't live in the CellBroadcast apex
+        cbrPackages.removeIf(info ->
+                !isAppInCBApex(info.activityInfo.applicationInfo));
+
+        if (cbrPackages.isEmpty()) {
+            Log.e(TAG, "getCBRPackageNames: no package found");
+            return null;
+        }
+
+        if (cbrPackages.size() > 1) {
+            // multiple apps found, log an error but continue
+            Log.e(TAG, "Found > 1 APK in CB apex that can resolve " + intent.getAction() + ": "
+                    + cbrPackages.stream()
+                    .map(info -> info.activityInfo.applicationInfo.packageName)
+                    .collect(Collectors.joining(", ")));
+        }
+
+        // Assume the first ResolveInfo is the one we're looking for
+        ResolveInfo info = cbrPackages.get(0);
+        return info.activityInfo.applicationInfo.packageName;
     }
 
     /**
@@ -596,42 +739,30 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     private static final class LocationRequester {
-        private static final String TAG = LocationRequester.class.getSimpleName();
+        private static final String TAG = CellBroadcastHandler.class.getSimpleName();
 
         /**
-         * Use as the default maximum wait time if the cell broadcast doesn't specify the value.
-         * Most of the location request should be responded within 20 seconds.
+         * Fused location provider, which means GPS plus network based providers (cell, wifi, etc..)
          */
-        private static final int DEFAULT_MAXIMUM_WAIT_TIME_SEC = 20;
-
-        /**
-         * Trigger this event when the {@link LocationManager} is not responded within the given
-         * time.
-         */
-        private static final int EVENT_LOCATION_REQUEST_TIMEOUT = 1;
-
-        /** Request a single location update. */
-        private static final int EVENT_REQUEST_LOCATION_UPDATE = 2;
-
-        /**
-         * Request location update from network or gps location provider. Network provider will be
-         * used if available, otherwise use the gps provider.
-         */
-        private static final List<String> LOCATION_PROVIDERS = Arrays.asList(
-                LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER);
+        //TODO: Should make LocationManager.FUSED_PROVIDER system API in S.
+        private static final String FUSED_PROVIDER = "fused";
 
         private final LocationManager mLocationManager;
-        private final Looper mLooper;
         private final List<LocationUpdateCallback> mCallbacks;
         private final Context mContext;
-        private Handler mLocationHandler;
+        private final Handler mLocationHandler;
 
-        LocationRequester(Context context, LocationManager locationManager, Looper looper) {
+        private boolean mLocationUpdateInProgress;
+        private final Runnable mTimeoutCallback;
+        private CancellationSignal mCancellationSignal;
+
+        LocationRequester(Context context, LocationManager locationManager, Handler handler) {
             mLocationManager = locationManager;
-            mLooper = looper;
             mCallbacks = new ArrayList<>();
             mContext = context;
-            mLocationHandler = new LocationHandler(looper);
+            mLocationHandler = handler;
+            mLocationUpdateInProgress = false;
+            mTimeoutCallback = this::onLocationTimeout;
         }
 
         /**
@@ -639,103 +770,89 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
          * {@code null} location will be called immediately.
          *
          * @param callback a callback to the response when the location is available
-         * @param maximumWaitTimeSec the maximum wait time of this request. If location is not
+         * @param maximumWaitTimeS the maximum wait time of this request. If location is not
          * updated within the maximum wait time, {@code callback#onLocationUpadte(null)} will be
          * called.
          */
         void requestLocationUpdate(@NonNull LocationUpdateCallback callback,
-                int maximumWaitTimeSec) {
-            mLocationHandler.obtainMessage(EVENT_REQUEST_LOCATION_UPDATE, maximumWaitTimeSec,
-                    0 /* arg2 */, callback).sendToTarget();
+                int maximumWaitTimeS) {
+            mLocationHandler.post(() -> requestLocationUpdateInternal(callback, maximumWaitTimeS));
         }
 
-        private void onLocationUpdate(@Nullable LatLng location) {
+        private void onLocationTimeout() {
+            Log.e(TAG, "Location request timeout");
+            if (mCancellationSignal != null) {
+                mCancellationSignal.cancel();
+            }
+            onLocationUpdate(null);
+        }
+
+        private void onLocationUpdate(@Nullable Location location) {
+            mLocationUpdateInProgress = false;
+            mLocationHandler.removeCallbacks(mTimeoutCallback);
+            LatLng latLng = null;
+            if (location != null) {
+                Log.d(TAG, "Got location update");
+                latLng = new LatLng(location.getLatitude(), location.getLongitude());
+            } else {
+                Log.e(TAG, "Location is not available.");
+            }
+
             for (LocationUpdateCallback callback : mCallbacks) {
-                callback.onLocationUpdate(location);
+                callback.onLocationUpdate(latLng);
             }
             mCallbacks.clear();
         }
 
         private void requestLocationUpdateInternal(@NonNull LocationUpdateCallback callback,
-                int maximumWaitTimeSec) {
+                int maximumWaitTimeS) {
             if (DBG) Log.d(TAG, "requestLocationUpdate");
-            if (!isLocationServiceAvailable()) {
+            if (!hasPermission(ACCESS_FINE_LOCATION) && !hasPermission(ACCESS_COARSE_LOCATION)) {
                 if (DBG) {
-                    Log.d(TAG, "Can't request location update because of no location permission");
+                    Log.e(TAG, "Can't request location update because of no location permission");
                 }
                 callback.onLocationUpdate(null);
                 return;
             }
 
-            if (!mLocationHandler.hasMessages(EVENT_LOCATION_REQUEST_TIMEOUT)) {
-                if (maximumWaitTimeSec == SmsCbMessage.MAXIMUM_WAIT_TIME_NOT_SET) {
-                    maximumWaitTimeSec = DEFAULT_MAXIMUM_WAIT_TIME_SEC;
+            if (!mLocationUpdateInProgress) {
+                LocationRequest request = LocationRequest.create()
+                        .setProvider(FUSED_PROVIDER)
+                        .setQuality(LocationRequest.ACCURACY_FINE)
+                        .setInterval(0)
+                        .setFastestInterval(0)
+                        .setSmallestDisplacement(0)
+                        .setNumUpdates(1)
+                        .setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+                if (DBG) {
+                    Log.d(TAG, "Location request=" + request);
                 }
-                mLocationHandler.sendMessageDelayed(
-                        mLocationHandler.obtainMessage(EVENT_LOCATION_REQUEST_TIMEOUT),
-                        maximumWaitTimeSec * DateUtils.SECOND_IN_MILLIS);
+                try {
+                    mCancellationSignal = new CancellationSignal();
+                    mLocationManager.getCurrentLocation(request, mCancellationSignal,
+                            new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
+                    // TODO: Remove the following workaround in S. We need to enforce the timeout
+                    // before location manager adds the support for timeout value which is less
+                    // than 30 seconds. After that we can rely on location manager's timeout
+                    // mechanism.
+                    mLocationHandler.postDelayed(mTimeoutCallback,
+                            TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "Cannot get current location. e=" + e);
+                    callback.onLocationUpdate(null);
+                    return;
+                }
+                mLocationUpdateInProgress = true;
             }
-
             mCallbacks.add(callback);
-
-            for (String provider : LOCATION_PROVIDERS) {
-                if (mLocationManager.isProviderEnabled(provider)) {
-                    mLocationManager.requestSingleUpdate(provider, mLocationListener, mLooper);
-                    break;
-                }
-            }
-        }
-
-        private boolean isLocationServiceAvailable() {
-            if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                    && !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) return false;
-            for (String provider : LOCATION_PROVIDERS) {
-                if (mLocationManager.isProviderEnabled(provider)) return true;
-            }
-            return false;
         }
 
         private boolean hasPermission(String permission) {
+            // TODO: remove the check. This will always return true because cell broadcast service
+            // is running under the UID Process.NETWORK_STACK_UID, which is below 10000. It will be
+            // automatically granted with all runtime permissions.
             return mContext.checkPermission(permission, Process.myPid(), Process.myUid())
                     == PackageManager.PERMISSION_GRANTED;
-        }
-
-        private final LocationListener mLocationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                mLocationHandler.removeMessages(EVENT_LOCATION_REQUEST_TIMEOUT);
-                onLocationUpdate(new LatLng(location.getLatitude(), location.getLongitude()));
-            }
-
-            @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {}
-
-            @Override
-            public void onProviderEnabled(String provider) {}
-
-            @Override
-            public void onProviderDisabled(String provider) {}
-        };
-
-        private final class LocationHandler extends Handler {
-            LocationHandler(Looper looper) {
-                super(looper);
-            }
-
-            @Override
-            public void handleMessage(Message msg) {
-                switch (msg.what) {
-                    case EVENT_LOCATION_REQUEST_TIMEOUT:
-                        if (DBG) Log.d(TAG, "location request timeout");
-                        onLocationUpdate(null);
-                        break;
-                    case EVENT_REQUEST_LOCATION_UPDATE:
-                        requestLocationUpdateInternal((LocationUpdateCallback) msg.obj, msg.arg1);
-                        break;
-                    default:
-                        Log.e(TAG, "Unsupported message type " + msg.what);
-                }
-            }
         }
     }
 }

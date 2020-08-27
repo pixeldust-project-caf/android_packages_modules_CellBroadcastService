@@ -29,7 +29,7 @@ import com.android.cellbroadcastservice.CellBroadcastProvider;
 public class CellBroadcastProviderTestable extends CellBroadcastProvider {
     private static final String TAG = CellBroadcastProviderTestable.class.getSimpleName();
 
-    public CellBroadcastProviderTestable(PermissionChecker permissionChecker) {
+    public CellBroadcastProviderTestable(CellBroadcastPermissionChecker permissionChecker) {
         super(permissionChecker);
     }
 
