@@ -55,6 +55,8 @@
     <bool name="use_new_geo_fence_calculation">false</bool>
 
     <!-- The threshold in which a UE can be outside of the geofence and still
-      receive a Cell Broadcast message. The value given is in meters. -->
-    <integer name="geo_fence_threshold">100</integer>
+      receive a Cell Broadcast message. The value given is in meters.
+      Default is according to FCC spec of .1 miles which is ~160 meters.
+       -->
+    <integer name="geo_fence_threshold">160</integer>
 </resources>
