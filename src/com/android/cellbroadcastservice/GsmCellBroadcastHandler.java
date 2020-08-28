@@ -63,6 +63,7 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -74,7 +75,7 @@ import java.util.stream.IntStream;
  * Handler for 3GPP format Cell Broadcasts. Parent class can also handle CDMA Cell Broadcasts.
  */
 public class GsmCellBroadcastHandler extends CellBroadcastHandler {
-    private static final boolean VDBG = false;  // log CB PDU data
+    private static final boolean VDBG_CB_PDU_DATA = false;  // log CB PDU data
 
     /** Indicates that a message is not displayed. */
     private static final String MESSAGE_NOT_DISPLAYED = "0";
@@ -259,6 +260,10 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             @Override
             public void onLocationUpdate(@NonNull CbGeoUtils.LatLng location,
                     float accuracy) {
+                if (VDBG) {
+                    logd("onLocationUpdate: location=" + location
+                            + ", acc=" + accuracy + ". ");
+                }
                 for (int i = 0; i < cbMessages.size(); i++) {
                     CbSendMessageCalculator calculator = calculators[i];
                     if (calculator.getFences().isEmpty()) {
@@ -269,13 +274,19 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                                 calculator, location, slotIndex, accuracy);
                     }
                 }
+
+                boolean containsAnyAmbiguousMessages = Arrays.stream(calculators)
+                        .anyMatch(c -> isMessageInAmbiguousState(c));
+                if (!containsAnyAmbiguousMessages) {
+                    cancelLocationRequest();
+                }
             }
 
             @Override
-            public void onTimeout() {
+            public void onLocationUnavailable() {
                 for (int i = 0; i < cbMessages.size(); i++) {
-                    geofenceCheckTimedOut(calculators[i], cbMessages.get(i), cbMessageUris.get(i),
-                            slotIndex);
+                    GsmCellBroadcastHandler.this.onLocationUnavailable(calculators[i],
+                            cbMessages.get(i), cbMessageUris.get(i), slotIndex);
                 }
             }
         }, maxWaitingTimeSec);
@@ -366,7 +377,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                     handleBroadcastSms(cbMessage);
                     return true;
                 }
-                if (VDBG) log("Not handled GSM broadcasts.");
+                if (VDBG_CB_PDU_DATA) log("Not handled GSM broadcasts.");
             }
         } else {
             final String errorMessage = "handleSmsMessage for GSM got object of type: "
@@ -479,7 +490,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
     private SmsCbMessage handleGsmBroadcastSms(SmsCbHeader header, byte[] receivedPdu,
             int slotIndex) {
         try {
-            if (VDBG) {
+            if (VDBG_CB_PDU_DATA) {
                 int pduLength = receivedPdu.length;
                 for (int i = 0; i < pduLength; i += 8) {
                     StringBuilder sb = new StringBuilder("SMS CB pdu data: ");
@@ -494,7 +505,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                 }
             }
 
-            if (VDBG) log("header=" + header);
+            if (VDBG_CB_PDU_DATA) log("header=" + header);
             TelephonyManager tm =
                     (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
             tm.createForSubscriptionId(getSubIdForPhone(mContext, slotIndex));
@@ -527,7 +538,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                     mSmsCbPageMap.put(concatInfo, pdus);
                 }
 
-                if (VDBG) log("pdus size=" + pdus.length);
+                if (VDBG_CB_PDU_DATA) log("pdus size=" + pdus.length);
                 // Page parameter is one-based
                 pdus[header.getPageIndex() - 1] = receivedPdu;
 

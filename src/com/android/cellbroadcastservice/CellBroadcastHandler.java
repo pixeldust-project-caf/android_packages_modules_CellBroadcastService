@@ -87,8 +87,6 @@ import java.util.stream.Stream;
 public class CellBroadcastHandler extends WakeLockStateMachine {
     private static final String TAG = "CellBroadcastHandler";
 
-    private static final boolean VDBG = false;
-
     /**
      * CellBroadcast apex name
      */
@@ -369,11 +367,15 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     }
                     performGeoFencing(message, uri, calculator, location, slotIndex,
                             accuracy);
+                    if (!isMessageInAmbiguousState(calculator)) {
+                        cancelLocationRequest();
+                    }
                 }
 
                 @Override
-                public void onTimeout() {
-                    geofenceCheckTimedOut(calculator, message, uri, slotIndex);
+                public void onLocationUnavailable() {
+                    CellBroadcastHandler.this.onLocationUnavailable(
+                            calculator, message, uri, slotIndex);
                 }
             }, maximumWaitingTime);
         } else {
@@ -387,23 +389,50 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     /**
-     * On timeout, we look at the calculated action and determine whether or not we should send it.
+     * Returns true if the message calculator is in a non-ambiguous state.
+     *
+     * </b>Note:</b> NO_COORDINATES is considered ambiguous because we received no information
+     * in this case.
+     * @param calculator the message calculator
+     * @return whether or not the message is handled
+     */
+    protected boolean isMessageInAmbiguousState(CbSendMessageCalculator calculator) {
+        return calculator.getAction() == SEND_MESSAGE_ACTION_AMBIGUOUS
+                || calculator.getAction() == SEND_MESSAGE_ACTION_NO_COORDINATES;
+    }
+
+    /**
+     * Cancels the location request
+     */
+    protected void cancelLocationRequest() {
+        this.mLocationRequester.cancel();
+    }
+
+    /**
+     * When location requester cannot send anymore updates, we look at the calculated action and
+     * determine whether or not we should send it.
+     *
+     * see: {@code CellBroadcastHandler.LocationUpdateCallback#onLocationUnavailable} for more info.
+     *
      * @param calculator the send message calculator
      * @param message the cell broadcast message received
      * @param uri the message's uri
      * @param slotIndex the slot
      */
-    protected void geofenceCheckTimedOut(CbSendMessageCalculator calculator, SmsCbMessage message,
+    protected void onLocationUnavailable(CbSendMessageCalculator calculator, SmsCbMessage message,
             Uri uri, int slotIndex) {
         @CbSendMessageCalculator.SendMessageAction int action = calculator.getAction();
         if (DBG) {
-            logd("geofenceCheckTimedOut: action="
+            logd("onLocationUnavailable: action="
                     + CbSendMessageCalculator.getActionString(action) + ". "
                     + getMessageString(message));
         }
 
-        if (action == SEND_MESSAGE_ACTION_AMBIGUOUS
-                || action == SEND_MESSAGE_ACTION_NO_COORDINATES) {
+        if (isMessageInAmbiguousState(calculator)) {
+            /* Case 1. If we reached the end of the location time out and we are still in an
+                       ambiguous state or no coordinates state, we send the message.
+               Case 2. If we don't have permissions, then no location was received and the
+                       calculator's action is NO_COORDINATES, which means we also send. */
             broadcastGeofenceMessage(message, uri, slotIndex, calculator);
         } else if (action == SEND_MESSAGE_ACTION_DONT_SEND) {
             geofenceMessageNotRequired(message);
@@ -596,7 +625,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     public void performGeoFencing(SmsCbMessage message, Uri uri,
             CbSendMessageCalculator calculator, LatLng location, int slotIndex, float accuracy) {
 
-        logd(calculator.toString() + ", action="
+        logd(calculator.toString() + ", current action="
                 + CbSendMessageCalculator.getActionString(calculator.getAction()));
 
         if (calculator.getAction() == SEND_MESSAGE_ACTION_SENT) {
@@ -604,10 +633,6 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                 logd("performGeoFencing:" + getMessageString(message));
             }
             return;
-        }
-
-        if (DBG) {
-            logd("Perform geo-fencing check. " + getMessageString(message));
         }
 
         if (uri != null) {
@@ -620,16 +645,17 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
         calculator.addCoordinate(location, accuracy);
 
+        if (VDBG) {
+            logd("Device location new action = "
+                    + CbSendMessageCalculator.getActionString(calculator.getAction())
+                    + ", threshold = " + calculator.getThreshold()
+                    + ", geos=" + CbGeoUtils.encodeGeometriesToString(calculator.getFences())
+                    + ". " + getMessageString(message));
+        }
+
         if (calculator.getAction() == SEND_MESSAGE_ACTION_SEND) {
             broadcastGeofenceMessage(message, uri, slotIndex, calculator);
             return;
-        }
-
-        if (DBG) {
-            logd("Device location new action = "
-                    + CbSendMessageCalculator.getActionString(calculator.getAction())
-                    + ", geos=" + CbGeoUtils.encodeGeometriesToString(calculator.getFences())
-                    + ". " + getMessageString(message));
         }
     }
 
@@ -648,10 +674,10 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     }
 
     /**
-     * Requests a stream of updates
-     * @param callback a callback will be called when the location is available.
+     * Requests a stream of updates for {@code maximumWaitTimeSec} seconds.
+     * @param callback the callback used to communicate back to the caller
      * @param maximumWaitTimeSec the maximum wait time of this request. If location is not updated
-     * within the maximum wait time, {@code callback#onTimeout()} will be called.
+     * within the maximum wait time, {@code callback#onLocationUnavailable()} will be called.
      */
     protected void requestLocationUpdate(LocationUpdateCallback callback, int maximumWaitTimeSec) {
         mLocationRequester.requestLocationUpdate(callback, maximumWaitTimeSec);
@@ -867,9 +893,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         void onLocationUpdate(@NonNull LatLng location, float accuracy);
 
         /**
-         * Called when the location timed out OR the location service is not available.
+         * This is called in the following scenarios:
+         *   1. The max time limit of the LocationRequester was reached, and consequently,
+         *      no more location updates will be sent.
+         *   2. The service does not have permission to request a location update.
+         *   3. The LocationRequester was explicitly cancelled.
          */
-        void onTimeout();
+        void onLocationUnavailable();
     }
 
     private static final class LocationRequester {
@@ -892,7 +922,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
         private final LocationListener mLocationListener;
         private boolean mLocationUpdateInProgress;
-        private final Runnable mTimeoutCallback;
+        private final Runnable mLocationUnavailable;
         private final String mDebugTag;
 
         LocationRequester(Context context, LocationManager locationManager,
@@ -902,27 +932,29 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             mContext = context;
             mHandlerHelper = handlerHelper;
             mLocationUpdateInProgress = false;
+            mLocationUnavailable = this::onLocationUnavailable;
+
+            // Location request did not cancel itself when using this::onLocationListener
             mLocationListener = this::onLocationUpdate;
-            mTimeoutCallback = this::onLocationTimeout;
             mDebugTag = debugTag;
         }
 
         /**
-         * Requests a stream of updates
-         * @param callback a callback will be called when the location is available.
-         * @param maximumWaitTimeS the maximum wait time of this request. If location is not updated
-         * within the maximum wait time, {@code callback#onTimeout()} will be called.
+         * Requests a stream of updates for {@code maximumWaitTimeSec} seconds.
+         * @param callback the callback used to communicate back to the caller
+         * @param maximumWaitTimeSec the maximum wait time of this request. If location is not
+         *                           updated within the maximum wait time,
+         *                           {@code callback#onLocationUnavailable()} will be called.
          */
         void requestLocationUpdate(@NonNull LocationUpdateCallback callback,
-                int maximumWaitTimeS) {
-            mHandlerHelper.post(() -> requestLocationUpdateInternal(callback, maximumWaitTimeS));
+                int maximumWaitTimeSec) {
+            mHandlerHelper.post(() -> requestLocationUpdateInternal(callback, maximumWaitTimeSec));
         }
 
         private void onLocationUpdate(@NonNull Location location) {
             if (location == null) {
-                /* onLocationUpdate is the LocationListener update method which has the @NonNull
-                   annotation over the location parameter.  Checking this use case in the off
-                   chance that null is passed in. */
+                /* onLocationUpdate should neverreceive a null location, but, covering all of our
+                   bases here. */
                 Log.wtf(mDebugTag, "Location is never supposed to be null");
                 return;
             }
@@ -930,10 +962,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
             float accuracy = location.getAccuracy();
             if (DBG) {
-                Log.d(mDebugTag, "onLocationUpdate: latLng="
-                        + latLng + ", accuracy=" + accuracy);
-            } else {
-                Log.d(mDebugTag, "onLocationUpdate: Got location update");
+                Log.d(mDebugTag, "onLocationUpdate: received location update");
             }
 
             for (LocationUpdateCallback callback : mCallbacks) {
@@ -941,18 +970,30 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             }
         }
 
-        /**
-         * The timeout is never cancelled and called everytime.
-         */
-        private void onLocationTimeout() {
-            Log.d(mDebugTag, "onLocationTimeout: Time's up");
+        private void onLocationUnavailable() {
+            Log.d(mDebugTag, "onLocationUnavailable: called");
+            locationRequesterCycleComplete();
+        }
+
+        /* This should only be called if all of the messages are handled. */
+        public void cancel() {
+            if (mLocationUpdateInProgress) {
+                Log.d(mDebugTag, "cancel: location update in progress");
+                mHandlerHelper.removeCallbacks(mLocationUnavailable);
+                locationRequesterCycleComplete();
+            } else {
+                Log.d(mDebugTag, "cancel: location update NOT in progress");
+            }
+        }
+
+        private void locationRequesterCycleComplete() {
             try {
                 for (LocationUpdateCallback callback : mCallbacks) {
-                    callback.onTimeout();
+                    callback.onLocationUnavailable();
                 }
-                mLocationManager.removeUpdates(mLocationListener);
             } finally {
-                //Reset the state of location requester for the next request
+                mLocationManager.removeUpdates(mLocationListener);
+                // Reset the state of location requester for the next request
                 mCallbacks.clear();
                 mLocationUpdateInProgress = false;
             }
@@ -966,13 +1007,14 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     Log.e(mDebugTag,
                             "Can't request location update because of no location permission");
                 }
-                callback.onTimeout();
+                callback.onLocationUnavailable();
                 return;
             }
 
             if (!mLocationUpdateInProgress) {
                 try {
-                    // We will continue to send updates until the timeout
+                    /* We will continue to send updates until the location timeout is reached. The
+                    location timeout case is handled through onLocationUnavailable. */
                     LocationRequest request = LocationRequest.create()
                             .setProvider(FUSED_PROVIDER)
                             .setQuality(LocationRequest.ACCURACY_FINE)
@@ -988,11 +1030,11 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     // before location manager adds the support for timeout value which is less
                     // than 30 seconds. After that we can rely on location manager's timeout
                     // mechanism.
-                    mHandlerHelper.postDelayed(mTimeoutCallback,
+                    mHandlerHelper.postDelayed(mLocationUnavailable,
                             TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
                 } catch (IllegalArgumentException e) {
                     Log.e(mDebugTag, "Cannot get current location. e=" + e);
-                    callback.onTimeout();
+                    callback.onLocationUnavailable();
                     return;
                 }
                 mLocationUpdateInProgress = true;
@@ -1053,8 +1095,19 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             mHandler.post(r);
         }
 
+        /**
+         * Gets the underlying handler
+         * @return the handler
+         */
         public Handler getHandler() {
             return mHandler;
+        }
+
+        /**
+         * Remove any pending posts of Runnable r that are in the message queue.
+         */
+        public void removeCallbacks(Runnable r) {
+            mHandler.removeCallbacks(r);
         }
     }
 }

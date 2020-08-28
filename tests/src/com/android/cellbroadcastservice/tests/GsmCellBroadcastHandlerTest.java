@@ -300,6 +300,8 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         LocationListener listener = listenerCaptor.getValue();
         listener.onLocationChanged(mock(Location.class));
 
+        runLocationUnavailableWhenMaxTimeReached();
+
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
         verify(mMockedContext).sendOrderedBroadcast(intentCaptor.capture(), any(),
                 (Bundle) any(), any(), any(), anyInt(), any(), any());
@@ -369,8 +371,8 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         setMockCalculation(mockCalculator, CbSendMessageCalculator.SEND_MESSAGE_ACTION_AMBIGUOUS,
                 false, true);
 
-        // Run timeout
-        runTimeout();
+        // Run location unavailable
+        runLocationUnavailableWhenMaxTimeReached();
 
 
         // Verify mark as sent and the right kind of broadcast has been sent
@@ -396,7 +398,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         assertEquals(1, geos.size());
         doReturn(geos).when(mockCalculator).getFences();
 
-        runTimeout();
+        runLocationUnavailableWhenMaxTimeReached();
         verifyBroadcastSent(mockCalculator);
     }
 
@@ -423,13 +425,15 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         setMockCalculation(mockCalculator, CbSendMessageCalculator.SEND_MESSAGE_ACTION_SEND,
                 true, true);
 
-        //Make sure we don't send again
+        // Make sure we don't send again
         doReturn(CbSendMessageCalculator.SEND_MESSAGE_ACTION_SENT).when(mockCalculator).getAction();
+
+        // Check location request was cancelled
+        assertLocationRequestCancelled();
+
+        // This should never hit since the was cancelled
         setMockCalculation(mockCalculator, CbSendMessageCalculator.SEND_MESSAGE_ACTION_SENT,
                 false, false);
-
-        // Run timeout
-        runTimeout();
 
         // Not sent
         verifyBroadcastNotSent(mockCalculator);
@@ -472,7 +476,7 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         mTestableLooper.processAllMessages();
         verifyBroadcastNotSent(mockCalculator);
 
-        runTimeout();
+        assertLocationRequestCancelled();
         verifyBroadcastNotSent(mockCalculator);
     }
 
@@ -482,7 +486,6 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         verify(mMockedContext).sendOrderedBroadcast(any(), any(),
                 (Bundle) any(), any(), any(), anyInt(), any(), any());
         clearInvocations(mMockedContext);
-
         verify(mockCalculator, times(1)).markAsSent();
         clearInvocations(mockCalculator);
     }
@@ -565,17 +568,32 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         return location;
     }
 
-    private void runTimeout() {
-        ArgumentCaptor<Runnable> onTimeoutCaptor = ArgumentCaptor.forClass(Runnable.class);
-        verify(mHandlerHelper).postDelayed(onTimeoutCaptor.capture(), anyLong());
-        onTimeoutCaptor.getValue().run();
+    private void runLocationUnavailableWhenMaxTimeReached() {
+        ArgumentCaptor<Runnable> onLocationUnavailableCaptor =
+                ArgumentCaptor.forClass(Runnable.class);
+        verify(mHandlerHelper).postDelayed(onLocationUnavailableCaptor.capture(), anyLong());
+
+        // Before running location unavailable, we check that the callback wasn't removed.
+        // Similar to assertLocationRequestCancelled
+        verify(mHandlerHelper, times(0))
+                .removeCallbacks(onLocationUnavailableCaptor.getValue());
+
+        onLocationUnavailableCaptor.getValue().run();
+    }
+
+    private void assertLocationRequestCancelled() {
+        ArgumentCaptor<Runnable> onLocationUnavailableCaptor =
+                ArgumentCaptor.forClass(Runnable.class);
+        verify(mHandlerHelper).postDelayed(onLocationUnavailableCaptor.capture(), anyLong());
+        verify(mHandlerHelper, times(1))
+                .removeCallbacks(onLocationUnavailableCaptor.getValue());
     }
 
     private LocationListener getLocationCallback() {
-        ArgumentCaptor<LocationListener> captor =
+        ArgumentCaptor<LocationListener> locationListenerCaptor =
                 ArgumentCaptor.forClass(LocationListener.class);
         verify(mMockedLocationManager).requestLocationUpdates(
-                any(LocationRequest.class), any(), captor.capture());
-        return captor.getValue();
+                any(LocationRequest.class), any(), locationListenerCaptor.capture());
+        return locationListenerCaptor.getValue();
     }
 }
