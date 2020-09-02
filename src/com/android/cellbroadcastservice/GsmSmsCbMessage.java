@@ -227,8 +227,8 @@ public class GsmSmsCbMessage {
         int offset = wacOffset + 2;
 
         if (offset + wacDataLength > pdu.length) {
-            throw new IllegalArgumentException("Invalid wac data, expected the length of pdu at"
-                    + "least " + offset + wacDataLength + ", actual is " + pdu.length);
+            throw new IllegalArgumentException("Invalid wac data, expected the length of pdu "
+                    + "at least " + (offset + wacDataLength) + ", actual is " + pdu.length);
         }
 
         BitStreamReader bitReader = new BitStreamReader(pdu, offset);
