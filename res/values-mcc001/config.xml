@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2019 The Android Open Source Project
+<!-- Copyright (C) 2020 The Android Open Source Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -18,4 +18,11 @@
     <!-- Whether to reset alert message duplicate detection and geo-fencing check after
     reboot or toggling airplane mode -->
     <bool name="reset_on_power_cycle_or_airplane_mode">true</bool>
+
+    <!-- Cell broadcast channels for area info update. Note the channel configuration for area info
+         is needed in CellBroadcastReceiver as well.  -->
+    <integer-array name="area_info_channels">
+        <item>50</item>
+        <item>60</item>
+    </integer-array>
 </resources>

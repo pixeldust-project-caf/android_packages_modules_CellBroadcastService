@@ -16,6 +16,8 @@
 
 package com.android.cellbroadcastservice;
 
+import static com.android.cellbroadcastservice.CellBroadcastStatsLog.CELL_BROADCAST_MESSAGE_ERROR__TYPE__FAILED_TO_INSERT_TO_DB;
+
 import android.content.ContentProvider;
 import android.content.ContentUris;
 import android.content.ContentValues;
@@ -42,21 +44,6 @@ import java.util.Arrays;
  * permission.
  */
 public class CellBroadcastProvider extends ContentProvider {
-    /** Interface for read/write permission check. */
-    public interface PermissionChecker {
-        /** Return {@code True} if the caller has the permission to write/update the database. */
-        boolean hasWritePermission();
-
-        /** Return {@code True} if the caller has the permission to query the complete database. */
-        boolean hasReadPermission();
-
-        /**
-         * Return {@code True} if the caller has the permission to query the database for
-         * cell broadcast message history.
-         */
-        boolean hasReadPermissionForHistory();
-    }
-
     private static final String TAG = CellBroadcastProvider.class.getSimpleName();
 
     private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
@@ -65,7 +52,8 @@ public class CellBroadcastProvider extends ContentProvider {
     private static final String DATABASE_NAME = "cellbroadcasts.db";
 
     /** Database version. */
-    private static final int DATABASE_VERSION = 3;
+    @VisibleForTesting
+    public static final int DATABASE_VERSION = 4;
 
     /** URI matcher for ContentProvider queries. */
     private static final UriMatcher sUriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -115,6 +103,9 @@ public class CellBroadcastProvider extends ContentProvider {
             CellBroadcasts.MESSAGE_FORMAT,
             CellBroadcasts.MESSAGE_PRIORITY,
             CellBroadcasts.ETWS_WARNING_TYPE,
+            // TODO: Remove the hardcode and make this system API in S.
+            // CellBroadcasts.ETWS_IS_PRIMARY,
+            "etws_is_primary",
             CellBroadcasts.CMAS_MESSAGE_CLASS,
             CellBroadcasts.CMAS_CATEGORY,
             CellBroadcasts.CMAS_RESPONSE_TYPE,
@@ -130,7 +121,7 @@ public class CellBroadcastProvider extends ContentProvider {
     };
 
     @VisibleForTesting
-    public PermissionChecker mPermissionChecker;
+    public CellBroadcastPermissionChecker mPermissionChecker;
 
     /** The database helper for this content provider. */
     @VisibleForTesting
@@ -144,7 +135,7 @@ public class CellBroadcastProvider extends ContentProvider {
     public CellBroadcastProvider() {}
 
     @VisibleForTesting
-    public CellBroadcastProvider(PermissionChecker permissionChecker) {
+    public CellBroadcastProvider(CellBroadcastPermissionChecker permissionChecker) {
         mPermissionChecker = permissionChecker;
     }
 
@@ -233,12 +224,27 @@ public class CellBroadcastProvider extends ContentProvider {
                             .notifyChange(CONTENT_URI, null /* observer */);
                     return newUri;
                 } else {
-                    Log.e(TAG, "Insert record failed because of unknown reason, uri = " + uri);
+                    String errorString = "uri=" + uri.toString() + " values=" + values;
+                    // 1000 character limit for error logs
+                    if (errorString.length() > 1000) {
+                        errorString = errorString.substring(0, 1000);
+                    }
+                    CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                            CELL_BROADCAST_MESSAGE_ERROR__TYPE__FAILED_TO_INSERT_TO_DB,
+                            errorString);
+                    Log.e(TAG, "Insert record failed because of unknown reason. " + errorString);
                     return null;
                 }
             default:
-                throw new IllegalArgumentException(
-                        "Insert method doesn't support this uri = " + uri);
+                String errorString = "Insert method doesn't support this uri="
+                        + uri.toString() + " values=" + values;
+                // 1000 character limit for error logs
+                if (errorString.length() > 1000) {
+                    errorString = errorString.substring(0, 1000);
+                }
+                CellBroadcastStatsLog.write(CellBroadcastStatsLog.CB_MESSAGE_ERROR,
+                        CELL_BROADCAST_MESSAGE_ERROR__TYPE__FAILED_TO_INSERT_TO_DB, errorString);
+                throw new IllegalArgumentException(errorString);
         }
     }
 
@@ -314,6 +320,8 @@ public class CellBroadcastProvider extends ContentProvider {
                 + CellBroadcasts.MESSAGE_FORMAT + " INTEGER,"
                 + CellBroadcasts.MESSAGE_PRIORITY + " INTEGER,"
                 + CellBroadcasts.ETWS_WARNING_TYPE + " INTEGER,"
+                // TODO: Use system API CellBroadcasts.ETWS_IS_PRIMARY in S.
+                + "etws_is_primary" + " BOOLEAN DEFAULT 0,"
                 + CellBroadcasts.CMAS_MESSAGE_CLASS + " INTEGER,"
                 + CellBroadcasts.CMAS_CATEGORY + " INTEGER,"
                 + CellBroadcasts.CMAS_RESPONSE_TYPE + " INTEGER,"
@@ -337,7 +345,7 @@ public class CellBroadcastProvider extends ContentProvider {
     }
 
     private void checkWritePermission() {
-        if (!mPermissionChecker.hasWritePermission()) {
+        if (!mPermissionChecker.hasFullAccessPermission()) {
             throw new SecurityException(
                     "No permission to write CellBroadcast provider");
         }
@@ -347,26 +355,24 @@ public class CellBroadcastProvider extends ContentProvider {
         int match = sUriMatcher.match(uri);
         switch (match) {
             case ALL:
-                if (!mPermissionChecker.hasReadPermission()) {
+                if (!mPermissionChecker.hasFullAccessPermission()) {
                     throw new SecurityException(
                             "No permission to read CellBroadcast provider");
                 }
                 break;
             case MESSAGE_HISTORY:
-                // TODO: if we plan to allow apps to query db in framework, we should migrate data
-                // first before deprecating app's database. otherwise users will lose all history.
-                if (!mPermissionChecker.hasReadPermissionForHistory()) {
-                    throw new SecurityException(
-                            "No permission to read CellBroadcast provider for message history");
-                }
+                // The normal read permission android.permission.READ_CELL_BROADCASTS
+                // is defined in AndroidManifest.xml and is enfored by the platform.
+                // So no additional check is required here.
                 break;
             default:
                 return;
         }
     }
 
-    private class CellBroadcastDatabaseHelper extends SQLiteOpenHelper {
-        CellBroadcastDatabaseHelper(Context context) {
+    @VisibleForTesting
+    public static class CellBroadcastDatabaseHelper extends SQLiteOpenHelper {
+        public CellBroadcastDatabaseHelper(Context context) {
             super(context, DATABASE_NAME, null /* factory */, DATABASE_VERSION);
         }
 
@@ -384,7 +390,9 @@ public class CellBroadcastProvider extends ContentProvider {
                 db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
                         + CellBroadcasts.SLOT_INDEX + " INTEGER DEFAULT 0;");
                 Log.d(TAG, "add slotIndex column");
-            } else if (oldVersion < 3) {
+            }
+
+            if (oldVersion < 3) {
                 db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
                         + CellBroadcasts.DATA_CODING_SCHEME + " INTEGER DEFAULT 0;");
                 db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
@@ -395,38 +403,28 @@ public class CellBroadcastProvider extends ContentProvider {
                         + CellBroadcasts.MESSAGE_DISPLAYED + " BOOLEAN DEFAULT 1;");
                 Log.d(TAG, "add dcs, location check time, and message displayed column.");
             }
+
+            if (oldVersion < 4) {
+                db.execSQL("ALTER TABLE " + CELL_BROADCASTS_TABLE_NAME + " ADD COLUMN "
+                        // TODO: Use system API CellBroadcasts.ETWS_IS_PRIMARY in S.
+                        + "etws_is_primary" + " BOOLEAN DEFAULT 0;");
+                Log.d(TAG, "add ETWS is_primary column.");
+            }
         }
     }
 
-    private class CellBroadcastPermissionChecker implements PermissionChecker {
-        @Override
-        public boolean hasWritePermission() {
+    /**
+     * Cell broadcast permission checker.
+     */
+    public class CellBroadcastPermissionChecker {
+        /**
+         * @return {@code true} if the caller has permission to fully access the cell broadcast
+         * provider.
+         */
+        public boolean hasFullAccessPermission() {
             int status = getContext().checkCallingOrSelfPermission(
                     "com.android.cellbroadcastservice.FULL_ACCESS_CELL_BROADCAST_HISTORY");
-            if (status == PackageManager.PERMISSION_GRANTED) {
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public boolean hasReadPermission() {
-            int status = getContext().checkCallingOrSelfPermission(
-                    "com.android.cellbroadcastservice.FULL_ACCESS_CELL_BROADCAST_HISTORY");
-            if (status == PackageManager.PERMISSION_GRANTED) {
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public boolean hasReadPermissionForHistory() {
-            int status = getContext().checkCallingOrSelfPermission(
-                    "android.permission.RECEIVE_EMERGENCY_BROADCAST");
-            if (status == PackageManager.PERMISSION_GRANTED) {
-                return true;
-            }
-            return false;
+            return status == PackageManager.PERMISSION_GRANTED;
         }
     }
 }

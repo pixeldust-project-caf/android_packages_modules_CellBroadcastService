@@ -22,22 +22,28 @@
 
     <original-package android:name="com.android.cellbroadcastservice" />
 
+    <!-- gives the permission holder access to the CellBroadcastProvider -->
+    <permission android:name="com.android.cellbroadcastservice.FULL_ACCESS_CELL_BROADCAST_HISTORY"
+            android:protectionLevel="signature" />
+
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
-    <uses-permission android:name="android.permission.RECEIVE_EMERGENCY_BROADCAST" />
     <uses-permission android:name="android.permission.READ_PRIVILEGED_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_CELL_BROADCASTS" />
     <uses-permission android:name="android.permission.MODIFY_PHONE_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.BROADCAST_SMS" />
-    <uses-permission android:name="android.permission.GRANT_RUNTIME_PERMISSIONS_TO_TELEPHONY_DEFAULTS" />
+    <uses-permission android:name="com.android.cellbroadcastservice.FULL_ACCESS_CELL_BROADCAST_HISTORY" />
+
+    <protected-broadcast android:name="android.telephony.action.AREA_INFO_UPDATED" />
 
     <uses-sdk android:minSdkVersion="29"/>
 
-    <application android:label="Module used to handle cell broadcasts."
+    <application android:label="Cell Broadcast Service"
         android:defaultToDeviceProtectedStorage="true"
-        android:persistent="true"
         android:directBootAware="true"
+        android:persistent="true"
+        android:forceQueryable="true"
         android:process="com.android.phone">
 
         <service android:name="DefaultCellBroadcastService"
@@ -48,5 +54,11 @@
                 <action android:name="android.telephony.CellBroadcastService" />
             </intent-filter>
         </service>
+        <provider android:name="CellBroadcastProvider"
+                android:authorities="cellbroadcasts"
+                android:exported="true"
+                android:singleUser="true"
+                android:readPermission="android.permission.READ_CELL_BROADCASTS"
+                android:multiprocess="false" />
     </application>
 </manifest>

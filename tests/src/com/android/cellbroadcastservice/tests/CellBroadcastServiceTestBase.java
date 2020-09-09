@@ -27,10 +27,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.location.LocationManager;
 import android.os.Handler;
 import android.os.IPowerManager;
+import android.os.IThermalService;
 import android.os.PowerManager;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -69,6 +71,9 @@ public class CellBroadcastServiceTestBase extends TestCase {
 
     @Mock
     protected LocationManager mMockedLocationManager;
+
+    @Mock
+    protected PackageManager mMockedPackageManager;
 
     private final MockContentResolver mMockedContentResolver = new MockContentResolver();
 
@@ -116,14 +121,19 @@ public class CellBroadcastServiceTestBase extends TestCase {
 
         // Can't directly mock power manager because it's final.
         PowerManager powerManager = new PowerManager(mMockedContext, mock(IPowerManager.class),
+                mock(IThermalService.class),
                 new Handler(TestableLooper.get(CellBroadcastServiceTestBase.this).getLooper()));
         doReturn(powerManager).when(mMockedContext).getSystemService(Context.POWER_SERVICE);
         doReturn(mMockedTelephonyManager).when(mMockedContext)
                 .getSystemService(Context.TELEPHONY_SERVICE);
+        doReturn(Context.TELEPHONY_SERVICE).when(mMockedContext)
+                .getSystemServiceName(TelephonyManager.class);
         doReturn(mMockedSubscriptionManager).when(mMockedContext)
                 .getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         doReturn(mMockedLocationManager).when(mMockedContext)
                 .getSystemService(Context.LOCATION_SERVICE);
+        doReturn(mMockedPackageManager).when(mMockedContext)
+                .getPackageManager();
         doReturn(mMockedContext).when(mMockedContext).createContextAsUser(any(), anyInt());
         doReturn(new int[]{FAKE_SUBID}).when(mMockedSubscriptionManager)
                 .getSubscriptionIds(anyInt());

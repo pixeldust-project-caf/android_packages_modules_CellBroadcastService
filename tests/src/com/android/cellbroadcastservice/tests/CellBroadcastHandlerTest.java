@@ -88,6 +88,7 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                         1,              // MESSAGE_FORMAT
                         3,              // MESSAGE_PRIORITY
                         0,              // ETWS_WARNING_TYPE
+                        0,              // ETWS_IS_PRIMARY
                         SmsCbCmasInfo.CMAS_CLASS_PRESIDENTIAL_LEVEL_ALERT, // CMAS_MESSAGE_CLASS
                         0,              // CMAS_CATEGORY
                         0,              // CMAS_RESPONSE_TYPE
@@ -141,7 +142,7 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     private SmsCbMessage createSmsCbMessage(int serialNumber, int serviceCategory,
             String messageBody) {
         return new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
-                0, serialNumber, new SmsCbLocation(),
+                0, serialNumber, new SmsCbLocation("311480", 0, 0),
                 serviceCategory, "en", messageBody, 3,
                 null, null, 0, 1);
     }
@@ -172,6 +173,16 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     public void testNotDuplicateMessageBodyDifferent() throws Exception {
         putResources(com.android.cellbroadcastservice.R.bool.duplicate_compare_body, true);
         SmsCbMessage msg = createSmsCbMessage(1234, 4370, "msg");
+        assertFalse(mCellBroadcastHandler.isDuplicate(msg));
+    }
+
+    @Test
+    @SmallTest
+    public void testNotDuplicateCellLocationDifferent() throws Exception {
+        SmsCbMessage msg = new SmsCbMessage(SmsCbMessage.MESSAGE_FORMAT_3GPP,
+                0, 1234, new SmsCbLocation("311480", 0, 1),
+                4370, "en", "Test Message", 3,
+                null, null, 0, 1);
         assertFalse(mCellBroadcastHandler.isDuplicate(msg));
     }
 
