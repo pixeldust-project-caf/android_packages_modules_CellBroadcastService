@@ -508,7 +508,8 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
      * @param broadcastArea the broadcast area of the message
      * @param location current location
      */
-    protected void performGeoFencing(SmsCbMessage message, Uri uri, List<Geometry> broadcastArea,
+    @VisibleForTesting
+    public void performGeoFencing(SmsCbMessage message, Uri uri, List<Geometry> broadcastArea,
             LatLng location, int slotIndex) {
 
         if (DBG) {
