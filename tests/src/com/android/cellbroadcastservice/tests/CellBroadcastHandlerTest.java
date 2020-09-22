@@ -156,6 +156,8 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         putResources(
                 com.android.cellbroadcastservice.R.array.additional_cell_broadcast_receiver_packages,
                 new String[]{});
+        putResources(com.android.cellbroadcastservice.R.bool.duplicate_compare_service_category,
+                true);
     }
 
     @After
@@ -363,7 +365,7 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         m.obj = new Object();
         assertFalse(mCellBroadcastHandler.handleSmsMessage(m));
     }
-    
+
     /**
      * Makes injecting a mock factory easy.
      */

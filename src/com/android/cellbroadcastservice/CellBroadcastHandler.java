@@ -466,6 +466,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         }
 
         boolean compareMessageBody = res.getBoolean(R.bool.duplicate_compare_body);
+        boolean compareServiceCategory = res.getBoolean(R.bool.duplicate_compare_service_category);
 
         log("Found " + cbMessages.size() + " messages since "
                 + DateFormat.getDateTimeInstance().format(dupCheckTime));
@@ -495,16 +496,15 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     continue;
                 }
 
-                // Check if the message category is different. Some carriers send cell broadcast
-                // messages on different techs (i.e. GSM / CDMA), so we need to compare service
-                // category cross techs.
-                if (message.getServiceCategory() != messageToCheck.getServiceCategory()
+                // Check if the message category is different.
+                if (compareServiceCategory
+                        && message.getServiceCategory() != messageToCheck.getServiceCategory()
                         && !Objects.equals(mServiceCategoryCrossRATMap.get(
                                 message.getServiceCategory()), messageToCheck.getServiceCategory())
                         && !Objects.equals(mServiceCategoryCrossRATMap.get(
                                 messageToCheck.getServiceCategory()),
                         message.getServiceCategory())) {
-                    if (VDBG) log("GSM/CDMA category does not match.");
+                    if (VDBG) log("Category does not match.");
                     // Not a dup. Check next one.
                     continue;
                 }
