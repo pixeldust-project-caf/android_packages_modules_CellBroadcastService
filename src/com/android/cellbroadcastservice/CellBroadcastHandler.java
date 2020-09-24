@@ -509,8 +509,11 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                     continue;
                 }
 
-                // Check if the message location is different
-                if (!isSameLocation(message, messageToCheck)) {
+                // Check if the message location is different. Note this is only applicable to
+                // 3GPP format cell broadcast messages.
+                if (message.getMessageFormat() == SmsCbMessage.MESSAGE_FORMAT_3GPP
+                        && messageToCheck.getMessageFormat() == SmsCbMessage.MESSAGE_FORMAT_3GPP
+                        && !isSameLocation(message, messageToCheck)) {
                     if (VDBG) log("Location does not match.");
                     // Not a dup. Check next one.
                     continue;
