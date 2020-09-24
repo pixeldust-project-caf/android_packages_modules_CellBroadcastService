@@ -93,6 +93,11 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     private static final String CB_APEX_NAME = "com.android.cellbroadcast";
 
     /**
+     * CellBroadcast app platform name
+     */
+    private static final String CB_APP_PLATFORM_NAME = "CellBroadcastAppPlatform";
+
+    /**
      * Path where CB apex is mounted (/apex/com.android.cellbroadcast)
      */
     private static final String CB_APEX_PATH = new File("/apex", CB_APEX_NAME).getAbsolutePath();
@@ -818,8 +823,9 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     /**
      * Checks if the app's path starts with CB_APEX_PATH
      */
-    private static boolean isAppInCBApex(ApplicationInfo appInfo) {
-        return appInfo.sourceDir.startsWith(CB_APEX_PATH);
+    private static boolean isAppInCBApexOrAlternativeApp(ApplicationInfo appInfo) {
+        return appInfo.sourceDir.startsWith(CB_APEX_PATH) ||
+               appInfo.sourceDir.contains(CB_APP_PLATFORM_NAME);
     }
 
     /**
@@ -832,7 +838,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
         // remove apps that don't live in the CellBroadcast apex
         cbrPackages.removeIf(info ->
-                !isAppInCBApex(info.activityInfo.applicationInfo));
+                !isAppInCBApexOrAlternativeApp(info.activityInfo.applicationInfo));
 
         if (cbrPackages.isEmpty()) {
             Log.e(TAG, "getCBRPackageNames: no package found");
