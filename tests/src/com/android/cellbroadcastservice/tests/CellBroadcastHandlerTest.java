@@ -141,6 +141,8 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                 mMockedResourcesCache);
         putResources(com.android.cellbroadcastservice.R.integer.message_expiration_time,
                 (int) DateUtils.DAY_IN_MILLIS);
+        putResources(com.android.cellbroadcastservice.R.bool.duplicate_compare_service_category,
+                true);
     }
 
     @After
