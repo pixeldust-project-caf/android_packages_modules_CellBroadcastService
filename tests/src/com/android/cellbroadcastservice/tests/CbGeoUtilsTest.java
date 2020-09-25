@@ -165,6 +165,29 @@ public class CbGeoUtilsTest extends CellBroadcastServiceTestBase {
     }
 
     @Test
+    public void testDistanceWithCircleToPoint() {
+        LatLng llWestNorth = addSouth(addEast(mGooglePlex, -100), 0);
+        double distance = CbGeoUtils.distance(
+                new Circle(mGooglePlex, 50), llWestNorth).get();
+        assertEqualsWithinPrecision(50, distance);
+    }
+
+    @Test
+    public void testPointEquals() {
+        CbGeoUtils.Point pt1 = new CbGeoUtils.Point(1.0, 1.0);
+        CbGeoUtils.Point pt2 = new CbGeoUtils.Point(1.0, 1.0);
+        assertEquals(pt1, pt2);
+        assertEquals(pt1.hashCode(), pt2.hashCode());
+    }
+
+    @Test
+    public void testPointToString() {
+        CbGeoUtils.Point pt = new CbGeoUtils.Point(1.0, 1.0);
+        String str = "(" + pt.x + ", " + pt.y + ")";
+        assertEquals(str, pt.toString());
+    }
+
+    @Test
     public void testDistanceWithSquareToPoint() {
 
         LatLng llWestNorth = addSouth(addEast(mGooglePlex, -100), -100);
