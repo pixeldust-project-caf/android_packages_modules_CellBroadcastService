@@ -15,10 +15,9 @@
 -->
 
 <resources>
-    <!-- The maximum waiting time in seconds for location to perform
-         device based geo-fencing -->
-    <integer name="max_location_waiting_time">120</integer>
-
-    <!-- Whether to compare message service category when deduping messages -->
-    <bool name="duplicate_compare_service_category">false</bool>
+  <!-- Cell broadcast channels for area info update. Note the channel configuration for area info
+       is needed in CellBroadcastReceiver as well.  -->
+  <integer-array name="area_info_channels">
+    <item>50</item>
+  </integer-array>
 </resources>
