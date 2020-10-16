@@ -568,25 +568,31 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                 case ACTION_AREA_UPDATE_ENABLED:
                     boolean enabled = intent.getBooleanExtra(EXTRA_ENABLE, false);
                     log("Area update info enabled: " + enabled);
+                    String[] pkgs = mContext.getResources().getStringArray(
+                            R.array.config_area_info_receiver_packages);
+                    // set mAreaInfo to null before sending the broadcast to listeners to avoid
+                    // possible race condition.
                     if (!enabled) {
-                        String[] pkgs = mContext.getResources().getStringArray(
-                                R.array.config_area_info_receiver_packages);
-                        // notify receivers. the setting is singleton for msim devices, if areaInfo
-                        // toggle was off, it will applies for all slots/subscriptions.
-                        for(int i = 0; i < mAreaInfos.size(); i++) {
+                        for (int i = 0; i < mAreaInfos.size(); i++) {
                             int slotIndex = mAreaInfos.keyAt(i);
                             log("Area update info disabled, clear areaInfo from: "
                                     + mAreaInfos.get(slotIndex));
-                            for (String pkg : pkgs) {
-                                Intent areaInfoIntent = new Intent(
-                                        CellBroadcastIntents.ACTION_AREA_INFO_UPDATED);
-                                intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, slotIndex);
-                                intent.setPackage(pkg);
-                                mContext.sendBroadcastAsUser(areaInfoIntent, UserHandle.ALL,
-                                        android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-                            }
+                            mAreaInfos.put(slotIndex, null);
                         }
-                        mAreaInfos.clear();
+                    }
+                    // notify receivers. the setting is singleton for msim devices, if areaInfo
+                    // toggle was off/on, it will applies for all slots/subscriptions.
+                    for(int i = 0; i < mAreaInfos.size(); i++) {
+                        int slotIndex = mAreaInfos.keyAt(i);
+                        for (String pkg : pkgs) {
+                            Intent areaInfoIntent = new Intent(
+                                    CellBroadcastIntents.ACTION_AREA_INFO_UPDATED);
+                            intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, slotIndex);
+                            intent.putExtra(EXTRA_ENABLE, enabled);
+                            intent.setPackage(pkg);
+                            mContext.sendBroadcastAsUser(areaInfoIntent, UserHandle.ALL,
+                                    android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+                        }
                     }
                     break;
                 default:
