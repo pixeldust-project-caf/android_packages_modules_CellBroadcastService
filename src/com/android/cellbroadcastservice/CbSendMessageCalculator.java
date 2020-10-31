@@ -90,18 +90,27 @@ public class CbSendMessageCalculator {
     }
 
     /**
+     * Marks the message as being sent.  The state will not be changed after this is set.
+     */
+    public void markAsSent() {
+        this.mAction = SEND_MESSAGE_ACTION_SENT;
+    }
+
+    /**
      * Translates the action to a readable equivalent
      * @return readable version of action
      */
-    String getActionString() {
-        if (mAction == SEND_MESSAGE_ACTION_SEND) {
+    public static String getActionString(int action) {
+        if (action == SEND_MESSAGE_ACTION_SEND) {
             return "SEND";
-        } else if (mAction == SEND_MESSAGE_ACTION_AMBIGUOUS) {
+        } else if (action == SEND_MESSAGE_ACTION_AMBIGUOUS) {
             return "AMBIGUOUS";
-        } else if (mAction == SEND_MESSAGE_ACTION_DONT_SEND) {
+        } else if (action == SEND_MESSAGE_ACTION_DONT_SEND) {
             return "DONT_SEND";
-        } else if (mAction == SEND_MESSAGE_ACTION_NO_COORDINATES) {
+        } else if (action == SEND_MESSAGE_ACTION_NO_COORDINATES) {
             return "NO_COORDINATES";
+        } else if (action == SEND_MESSAGE_ACTION_SENT) {
+            return "SENT";
         } else {
             return "!BAD_VALUE!";
         }
@@ -119,12 +128,25 @@ public class CbSendMessageCalculator {
     /** Continue polling */
     public static final int SEND_MESSAGE_ACTION_AMBIGUOUS = 3;
 
+    /** A user set flag that indicates this message was sent */
+    public static final int SEND_MESSAGE_ACTION_SENT = 4;
+
+    /**
+     * Get the Geo Fences
+     *
+     * @return a list of shapes
+     */
+    public @NonNull List<CbGeoUtils.Geometry> getFences() {
+        return this.mFences;
+    }
+
     /**
      * Send Message Action annotation
      */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({SEND_MESSAGE_ACTION_NO_COORDINATES, SEND_MESSAGE_ACTION_SEND,
             SEND_MESSAGE_ACTION_DONT_SEND, SEND_MESSAGE_ACTION_AMBIGUOUS,
+            SEND_MESSAGE_ACTION_SENT,
     })
     public @interface SendMessageAction {}
 
@@ -132,7 +154,7 @@ public class CbSendMessageCalculator {
      * Calculate action based off of the send reason.
      * @return
      */
-    public void addCoordinate(CbGeoUtils.LatLng coordinate, double accuracyMeters) {
+    public void addCoordinate(CbGeoUtils.LatLng coordinate, float accuracyMeters) {
         if (mFences.size() == 0) {
             //No fences mean we shouldn't bother
             return;
@@ -151,7 +173,7 @@ public class CbSendMessageCalculator {
      * @return the action
      */
     @SendMessageAction
-    private void calculatePersistentAction(CbGeoUtils.LatLng coordinate, double accuracyMeters) {
+    private void calculatePersistentAction(CbGeoUtils.LatLng coordinate, float accuracyMeters) {
         // If we already marked this as a send, we don't need to check anything.
         if (this.mAction != SEND_MESSAGE_ACTION_SEND) {
             @SendMessageAction int newAction =
@@ -180,7 +202,7 @@ public class CbSendMessageCalculator {
      * @return the action
      */
     @SendMessageAction
-    private int calculateActionFromFences(CbGeoUtils.LatLng coordinate, double accuracyMeters) {
+    private int calculateActionFromFences(CbGeoUtils.LatLng coordinate, float accuracyMeters) {
 
         // If everything is outside, then we stick with outside
         int totalAction = SEND_MESSAGE_ACTION_DONT_SEND;
@@ -203,7 +225,7 @@ public class CbSendMessageCalculator {
     }
 
     @SendMessageAction
-    private int calculateSingleFence(CbGeoUtils.LatLng coordinate, double accuracyMeters,
+    private int calculateSingleFence(CbGeoUtils.LatLng coordinate, float accuracyMeters,
             CbGeoUtils.Geometry fence) {
         if (fence.contains(coordinate)) {
             return SEND_MESSAGE_ACTION_SEND;
@@ -216,7 +238,7 @@ public class CbSendMessageCalculator {
         }
     }
 
-    private int calculateSysSingleFence(CbGeoUtils.LatLng coordinate, double accuracyMeters,
+    private int calculateSysSingleFence(CbGeoUtils.LatLng coordinate, float accuracyMeters,
             CbGeoUtils.Geometry fence) {
         Optional<Double> maybeDistance =
                 com.android.cellbroadcastservice.CbGeoUtils.distance(fence, coordinate);
