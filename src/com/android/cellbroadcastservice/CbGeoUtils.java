@@ -367,20 +367,19 @@ public class CbGeoUtils {
      * Represents a line segment. This is used for handling geo-fenced cell broadcasts.
      * More information regarding cell broadcast geo-fencing logic is
      * laid out in 3GPP TS 23.041 and ATIS-0700041.
-     *
-     * @hide
      */
     @VisibleForTesting
     public static final class LineSegment {
-        @NonNull final Point a, b;
+        @NonNull final Point mPtA;
+        @NonNull final Point mPtB;
 
-        public LineSegment(@NonNull final Point a, @NonNull final Point b) {
-            this.a = a;
-            this.b = b;
+        public LineSegment(@NonNull final Point ptA, @NonNull final Point ptB) {
+            this.mPtA = ptA;
+            this.mPtB = ptB;
         }
 
         public double getLength() {
-            return this.a.distance(this.b);
+            return this.mPtA.distance(this.mPtB);
         }
 
         /**
@@ -392,11 +391,11 @@ public class CbGeoUtils {
         public double distance(Point pt) {
             final double lengthSquared = getLength() * getLength();
             if (lengthSquared == 0.0) {
-                return pt.distance(this.a);
+                return pt.distance(this.mPtA);
             }
 
-            Point sub1 = pt.subtract(a);
-            Point sub2 = b.subtract(a);
+            Point sub1 = pt.subtract(mPtA);
+            Point sub2 = mPtB.subtract(mPtA);
             double dot = sub1.x * sub2.x + sub1.y * sub2.y;
 
             //Magnitude of projection
@@ -409,8 +408,8 @@ public class CbGeoUtils {
                 magnitude = 0.0;
             }
 
-            final double projX = calcProjCoordinate(this.a.x, this.b.x, magnitude);
-            final double projY = calcProjCoordinate(this.a.y, this.b.y, magnitude);
+            final double projX = calcProjCoordinate(this.mPtA.x, this.mPtB.x, magnitude);
+            final double projY = calcProjCoordinate(this.mPtA.y, this.mPtB.y, magnitude);
 
             final Point proj = new Point(projX, projY);
             return proj.distance(pt);

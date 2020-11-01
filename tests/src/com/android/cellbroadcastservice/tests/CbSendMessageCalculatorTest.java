@@ -42,6 +42,10 @@ import java.util.stream.Collectors;
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
 public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
+
+    private static final String TAG = CbSendMessageCalculatorTest.class.getSimpleName();
+
+
     LatLng mGooglePlex = new LatLng(
             37.423640, -122.088310);
 
@@ -72,14 +76,14 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
     @Test
     public void testSingleSquareOutside() {
         LatLng coor = addSouth(addEast(mGooglePlex, -2000), -500);
-        double threshold = 100;
+        float threshold = 100;
 
         //We need to test with accuracies less than and greater than the threshold
         testSquareOutside(coor, threshold - 10, threshold);
         testSquareOutside(coor, threshold + 10, threshold);
     }
 
-    void testSquareOutside(LatLng coor, double accuracy, double threshold) {
+    void testSquareOutside(LatLng coor, float accuracy, float threshold) {
         CbSendMessageCalculator calculator = createCalculator(threshold, mSquare);
         calculator.addCoordinate(coor, accuracy);
         assertEquals(CbSendMessageCalculator.SEND_MESSAGE_ACTION_DONT_SEND, calculator.getAction());
@@ -88,12 +92,12 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
     @Test
     public void testSingleSquareInside() {
         LatLng coor = mGooglePlex;
-        double threshold = 100;
+        float threshold = 100;
         testSquareInside(coor, threshold - 10, threshold);
         testSquareInside(coor, threshold + 10, threshold);
     }
 
-    void testSquareInside(LatLng coor, double accuracy, double threshold) {
+    void testSquareInside(LatLng coor, float accuracy, float threshold) {
         CbSendMessageCalculator calculator = createCalculator(threshold, mSquare);
         calculator.addCoordinate(coor, accuracy);
         assertEquals(CbSendMessageCalculator.SEND_MESSAGE_ACTION_SEND, calculator.getAction());
@@ -102,21 +106,65 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
     @Test
     public void testSingleSquareInsideAndOutsideThreshold() {
         LatLng coor = addEast(addSouth(mGooglePlex, 1005), 1005);
-        double threshold = 100;
+        float threshold = 100;
         testSquareInsideThreshold(coor, 1, threshold);
 
         //The accuracy is greater than the threshold and not overlapping, and so this is a no go
         testSquareAmbiguous(coor, threshold + 50, threshold);
     }
 
-    private void testSquareAmbiguous(LatLng coor, double accuracy, double threshold) {
+    @Test
+    public void testTMoThresholdsWithExistingTestGeofence() {
+        LatLng llNorthWest = new LatLng(37.428832054138184, -122.0907211303711);
+        LatLng ll2 = new LatLng(37.42363929748535, -122.09054946899414);
+        LatLng ll3 = new LatLng(37.42312431335449, -122.07621574401855);
+        LatLng ll4 = new LatLng(37.428574562072754, -122.07664489746094);
+        LatLng ll5 = new LatLng(37.428832054138184, -122.0907211303711);
+
+        float tmoThreshold = 80;
+        float accuracy = 25;
+        Polygon poly = createPolygon(llNorthWest, ll2, ll3, ll4, ll5);
+        CbSendMessageCalculator calculator = createCalculator(tmoThreshold, poly);
+
+        // .025 miles
+        LatLng llInThreshold = addSouth(addEast(llNorthWest, -40), -40);
+        calculator.addCoordinate(llInThreshold, accuracy);
+        assertEquals(CbSendMessageCalculator.SEND_MESSAGE_ACTION_SEND, calculator.getAction());
+
+        /*
+        String inThresholdActionStr =
+                CbSendMessageCalculator.getActionString(calculator.getAction());
+
+        Log.d(TAG, "inThreshold: latLng=" + llInThreshold
+                + ", action=" + inThresholdActionStr
+                + ", distance=" + CbGeoUtils.distance(poly, llInThreshold));*/
+
+
+
+        // .075 miles
+        LatLng llOutOfThreshold = addSouth(addEast(llNorthWest, -120), -40);
+        calculator = createCalculator(tmoThreshold, poly);
+        calculator.addCoordinate(llOutOfThreshold, accuracy);
+
+        /*
+        String llOutOfThresholdActionStr =
+                CbSendMessageCalculator.getActionString(calculator.getAction());
+
+        Log.d(TAG, "outOfThreshold: latLng=" + llOutOfThreshold
+                + ", action=" + llOutOfThresholdActionStr
+                + ", distance=" + CbGeoUtils.distance(poly, llOutOfThreshold));
+        assertEquals(CbSendMessageCalculator.SEND_MESSAGE_ACTION_DONT_SEND,
+            calculator.getAction());*/
+    }
+
+    private void testSquareAmbiguous(LatLng coor, float accuracy, float threshold) {
         CbSendMessageCalculator calculator = createCalculator(threshold, mSquare);
         calculator.addCoordinate(coor, accuracy);
         assertEquals(CbSendMessageCalculator.SEND_MESSAGE_ACTION_AMBIGUOUS,
                 calculator.getAction());
     }
 
-    void testSquareInsideThreshold(LatLng coor, double accuracy, double threshold) {
+    void testSquareInsideThreshold(LatLng coor, float accuracy, float threshold) {
         CbSendMessageCalculator calculator = createCalculator(threshold, mSquare);
         calculator.addCoordinate(coor, accuracy);
         assertEquals(CbSendMessageCalculator.SEND_MESSAGE_ACTION_SEND,
@@ -136,7 +184,7 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
     public void testMultipleAddsWithOnceSendAlwaysSend() {
         // Once we are set to send, we always go with send.
         // Set to inside
-        double threshold = 100;
+        float threshold = 100;
         CbSendMessageCalculator calculator = createCalculator(threshold, mSquare);
 
         // Inside
@@ -154,7 +202,7 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
 
     @Test
     public void testMultipleAddsWithDontSendThenSend() {
-        double threshold = 100;
+        float threshold = 100;
         CbSendMessageCalculator calculator = createCalculator(threshold, mSquare);
 
         // Outside
@@ -176,7 +224,7 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
 
     @Test
     public void testMultipleAddsWithAmbiguousToDontSend() {
-        double threshold = 100;
+        float threshold = 100;
         CbSendMessageCalculator calculator = createCalculator(threshold, mSquare);
 
         // Ambiguous
@@ -198,9 +246,9 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
 
     @Test
     public void testMultipleAddsAndDoNewWayFalseWithAmbiguousToDontSend() {
-        double threshold = 100;
+        float threshold = 100;
 
-        //Testing with the geo fence calculation false
+        // Testing with the geo fence calculation false
         doReturn(false).when(mMockedResources)
                 .getBoolean(R.bool.use_new_geo_fence_calculation);
         CbSendMessageCalculator calculator = createCalculator(threshold, mSquare);
@@ -223,7 +271,7 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
     }
 
     @Test public void testThreshold() {
-        //Testing with the geo fence calculation false
+        // Testing with the geo fence calculation false
         doReturn(1000).when(mMockedResources)
                 .getInteger(R.integer.geo_fence_threshold);
 
@@ -235,7 +283,7 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
 
     @Test
     public void testManyGeosWithInsideAndOutside() {
-        double threshold = 100;
+        float threshold = 100;
         CbSendMessageCalculator calcOutsideInside =
                 createCalculator(threshold, mCircleFarAway, mSquare);
 
@@ -245,7 +293,7 @@ public class CbSendMessageCalculatorTest extends CellBroadcastServiceTestBase {
                 calcOutsideInside.getAction());
     }
 
-    private CbSendMessageCalculator createCalculator(double threshold,
+    private CbSendMessageCalculator createCalculator(float threshold,
             Geometry geo, Geometry... geos) {
         List<Geometry> list = new ArrayList<>(Arrays.asList(geos));
         list.add(geo);
