@@ -38,11 +38,11 @@ import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationRequest;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.Looper;
@@ -800,10 +800,10 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
         private final List<LocationUpdateCallback> mCallbacks;
         private final Context mContext;
         private final Handler mLocationHandler;
+        private final LocationListener mLocationListener;
+        private final Runnable mTimeoutCallback;
 
         private boolean mLocationUpdateInProgress;
-        private final Runnable mTimeoutCallback;
-        private CancellationSignal mCancellationSignal;
 
         LocationRequester(Context context, LocationManager locationManager, Handler handler) {
             mLocationManager = locationManager;
@@ -811,6 +811,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
             mContext = context;
             mLocationHandler = handler;
             mLocationUpdateInProgress = false;
+            mLocationListener = this::onLocationUpdate;
             mTimeoutCallback = this::onLocationTimeout;
         }
 
@@ -830,15 +831,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
         private void onLocationTimeout() {
             Log.e(TAG, "Location request timeout");
-            if (mCancellationSignal != null) {
-                mCancellationSignal.cancel();
-            }
             onLocationUpdate(null);
         }
 
         private void onLocationUpdate(@Nullable Location location) {
             mLocationUpdateInProgress = false;
             mLocationHandler.removeCallbacks(mTimeoutCallback);
+            mLocationManager.removeUpdates(mLocationListener);
             LatLng latLng = null;
             float accuracy = 0;
             if (location != null) {
@@ -873,19 +872,13 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
                         .setInterval(0)
                         .setFastestInterval(0)
                         .setSmallestDisplacement(0)
-                        .setNumUpdates(1)
-                        .setExpireIn(TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
+                        .setNumUpdates(1);
                 if (DBG) {
                     Log.d(TAG, "Location request=" + request);
                 }
                 try {
-                    mCancellationSignal = new CancellationSignal();
-                    mLocationManager.getCurrentLocation(request, mCancellationSignal,
+                    mLocationManager.requestLocationUpdates(request,
                             new HandlerExecutor(mLocationHandler), this::onLocationUpdate);
-                    // TODO: Remove the following workaround in S. We need to enforce the timeout
-                    // before location manager adds the support for timeout value which is less
-                    // than 30 seconds. After that we can rely on location manager's timeout
-                    // mechanism.
                     mLocationHandler.postDelayed(mTimeoutCallback,
                             TimeUnit.SECONDS.toMillis(maximumWaitTimeS));
                 } catch (IllegalArgumentException e) {
