@@ -30,6 +30,7 @@ import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationRequest;
 import android.net.Uri;
 import android.os.Bundle;
@@ -64,7 +65,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
 import java.util.Map;
-import java.util.function.Consumer;
 
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
@@ -193,12 +193,13 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(0, pdu);
         mTestableLooper.processAllMessages();
 
-        ArgumentCaptor<Consumer<Location>> consumerCaptor = ArgumentCaptor.forClass(Consumer.class);
-        verify(mMockedLocationManager).getCurrentLocation(
-                any(LocationRequest.class), any(), any(), consumerCaptor.capture());
+        ArgumentCaptor<LocationListener> listenerCaptor =
+                ArgumentCaptor.forClass(LocationListener.class);
+        verify(mMockedLocationManager).requestLocationUpdates(
+                any(LocationRequest.class), any(), listenerCaptor.capture());
 
-        Consumer<Location> consumer = consumerCaptor.getValue();
-        consumer.accept(mock(Location.class));
+        LocationListener listener = listenerCaptor.getValue();
+        listener.onLocationChanged(mock(Location.class));
 
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
         verify(mMockedContext).sendOrderedBroadcast(intentCaptor.capture(), any(),
@@ -243,12 +244,13 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(0, pdu);
         mTestableLooper.processAllMessages();
 
-        ArgumentCaptor<Consumer<Location>> captor = ArgumentCaptor.forClass(Consumer.class);
-        verify(mMockedLocationManager).getCurrentLocation(
-                any(LocationRequest.class), any(), any(), captor.capture());
+        ArgumentCaptor<LocationListener> listenerCaptor =
+                ArgumentCaptor.forClass(LocationListener.class);
+        verify(mMockedLocationManager).requestLocationUpdates(
+                any(LocationRequest.class), any(), listenerCaptor.capture());
 
-        Consumer<Location> consumer = captor.getValue();
-        consumer.accept(mock(Location.class));
+        LocationListener listener = listenerCaptor.getValue();
+        listener.onLocationChanged(mock(Location.class));
 
         verify(mMockedContext, never()).sendOrderedBroadcast(any(), anyString(), anyString(),
                 any(), any(), anyInt(), any(), any());
@@ -278,12 +280,13 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         mGsmCellBroadcastHandler.onGsmCellBroadcastSms(0, pdu);
         mTestableLooper.processAllMessages();
 
-        ArgumentCaptor<Consumer<Location>> captor = ArgumentCaptor.forClass(Consumer.class);
-        verify(mMockedLocationManager).getCurrentLocation(
-                any(LocationRequest.class), any(), any(), captor.capture());
+        ArgumentCaptor<LocationListener> listenerCaptor =
+                ArgumentCaptor.forClass(LocationListener.class);
+        verify(mMockedLocationManager).requestLocationUpdates(
+                any(LocationRequest.class), any(), listenerCaptor.capture());
 
-        Consumer<Location> consumer = captor.getValue();
-        consumer.accept(mock(Location.class));
+        LocationListener listener = listenerCaptor.getValue();
+        listener.onLocationChanged(mock(Location.class));
 
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
         verify(mMockedContext).sendOrderedBroadcast(intentCaptor.capture(), any(),
