@@ -16,8 +16,11 @@
 
 package com.android.cellbroadcastservice.tests;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -71,6 +74,8 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     private Map<Integer, Resources> mMockedResourcesCache;
 
     private CbSendMessageCalculatorFactoryFacade mSendMessageFactory;
+
+    private CellBroadcastHandler.HandlerHelper mHandlerHelper;
 
     private class CellBroadcastContentProvider extends MockContentProvider {
         @Override
@@ -129,9 +134,18 @@ public class CellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
 
         mTestbleLooper = TestableLooper.get(CellBroadcastHandlerTest.this);
         mSendMessageFactory = new CbSendMessageCalculatorFactoryFacade();
+        mHandlerHelper = mock(CellBroadcastHandler.HandlerHelper.class);
 
         mCellBroadcastHandler = new CellBroadcastHandler("CellBroadcastHandlerUT",
-                mMockedContext, mTestbleLooper.getLooper(), mSendMessageFactory);
+                mMockedContext, mTestbleLooper.getLooper(), mSendMessageFactory, mHandlerHelper);
+
+        doAnswer(invocation -> {
+            Runnable r = invocation.getArgument(0);
+            mCellBroadcastHandler.getHandler().post(r);
+            return null;
+        }).when(mHandlerHelper).post(any());
+        doReturn(mCellBroadcastHandler.getHandler()).when(mHandlerHelper).getHandler();
+
         ((MockContentResolver) mMockedContext.getContentResolver()).addProvider(
                 Telephony.CellBroadcasts.CONTENT_URI.getAuthority(),
                 new CellBroadcastContentProvider());
