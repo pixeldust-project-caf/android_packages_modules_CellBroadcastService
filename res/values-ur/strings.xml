@@ -20,5 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"ساحلی خطوں اور دریائی کناروں کے علاقوں کو فوری طور پر خالی کر کے اونچے ٹیلے جیسے کسی زیادہ محفوظ مقام پر چلے جائیں۔"</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"پُرسکون رہیں اور قریبی پناہ حاصل کریں۔"</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"ایمرجنسی پیغامات کی جانچ"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"مقامی حکومت کے ذریعہ جاری کردہ الرٹ۔ مزید معلومات جلد آرہی ہیں۔"</string>
 </resources>
