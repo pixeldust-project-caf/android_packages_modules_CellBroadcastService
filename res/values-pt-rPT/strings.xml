@@ -20,5 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"Abandone imediatamente regiões costeiras e zonas ribeirinhas em direção a um local mais seguro, como um terreno elevado."</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"Mantenha a calma e procure abrigo nas proximidades."</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"Teste de mensagens de emergência"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"Alerta emitido pelo governo local. Serão disponibilizadas mais informações em breve."</string>
 </resources>

@@ -20,5 +20,5 @@
     <string name="etws_primary_default_message_tsunami" msgid="2521384573822842618">"อพยพออกจากจากเขตชายฝั่งทะเลและบริเวณริมแม่น้ำไปยังสถานที่ที่ปลอดภัยกว่า เช่น ที่สูง โดยทันที"</string>
     <string name="etws_primary_default_message_earthquake_and_tsunami" msgid="7826176257527823396">"ทำใจให้สงบและหาที่กำบังในบริเวณใกล้เคียง"</string>
     <string name="etws_primary_default_message_test" msgid="2739829278266087553">"การทดสอบข้อความกรณีฉุกเฉิน"</string>
-    <string name="etws_primary_default_message_others" msgid="7879169328308568119"></string>
+    <string name="etws_primary_default_message_others" msgid="3271611843755121534">"การแจ้งเตือนจากองค์กรปกครองส่วนท้องถิ่น โปรดติดตามข้อมูลเพิ่มเติมเร็วๆ นี้"</string>
 </resources>
