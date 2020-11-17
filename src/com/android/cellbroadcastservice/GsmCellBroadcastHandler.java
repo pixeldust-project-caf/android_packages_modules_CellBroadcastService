@@ -36,6 +36,7 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.Telephony.CellBroadcasts;
 import android.telephony.AccessNetworkConstants;
+import android.telephony.CbGeoUtils;
 import android.telephony.CbGeoUtils.Geometry;
 import android.telephony.CellBroadcastIntents;
 import android.telephony.CellIdentity;
@@ -62,6 +63,7 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -105,8 +107,10 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
 
     @VisibleForTesting
     public GsmCellBroadcastHandler(Context context, Looper looper,
-            CbSendMessageCalculatorFactory cbSendMessageCalculatorFactory) {
-        super("GsmCellBroadcastHandler", context, looper, cbSendMessageCalculatorFactory);
+            CbSendMessageCalculatorFactory cbSendMessageCalculatorFactory,
+            CellBroadcastHandler.HandlerHelper handlerHelper) {
+        super("GsmCellBroadcastHandler", context, looper, cbSendMessageCalculatorFactory,
+                handlerHelper);
         mContext.registerReceiver(mReceiver, new IntentFilter(ACTION_AREA_UPDATE_ENABLED),
                 CBR_MODULE_PERMISSION, null);
     }
@@ -146,7 +150,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
      */
     public static GsmCellBroadcastHandler makeGsmCellBroadcastHandler(Context context) {
         GsmCellBroadcastHandler handler = new GsmCellBroadcastHandler(context, Looper.myLooper(),
-                new CbSendMessageCalculatorFactory());
+                new CbSendMessageCalculatorFactory(), null);
         handler.start();
         return handler;
     }
@@ -241,22 +245,48 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             return false;
         }
 
-        requestLocationUpdate((location, accuracy) -> {
-            if (location == null) {
-                // If the location is not available, broadcast the messages directly.
-                for (int i = 0; i < cbMessages.size(); i++) {
-                    broadcastMessage(cbMessages.get(i), cbMessageUris.get(i), slotIndex);
+        //Create calculators for each message that will be reused on every location update.
+        CbSendMessageCalculator[] calculators = new CbSendMessageCalculator[cbMessages.size()];
+        for (int i = 0; i < cbMessages.size(); i++) {
+            List<Geometry> broadcastArea = !commonBroadcastArea.isEmpty()
+                    ? commonBroadcastArea : cbMessages.get(i).getGeometries();
+            if (broadcastArea == null) {
+                broadcastArea = new ArrayList<>();
+            }
+            calculators[i] = mCbSendMessageCalculatorFactory.createNew(mContext, broadcastArea);
+        }
+
+        requestLocationUpdate(new LocationUpdateCallback() {
+            @Override
+            public void onLocationUpdate(@NonNull CbGeoUtils.LatLng location,
+                    float accuracy) {
+                if (VDBG) {
+                    logd("onLocationUpdate: location=" + location
+                            + ", acc=" + accuracy + ". ");
                 }
-            } else {
                 for (int i = 0; i < cbMessages.size(); i++) {
-                    List<Geometry> broadcastArea = !commonBroadcastArea.isEmpty()
-                            ? commonBroadcastArea : cbMessages.get(i).getGeometries();
-                    if (broadcastArea == null || broadcastArea.isEmpty()) {
-                        broadcastMessage(cbMessages.get(i), cbMessageUris.get(i), slotIndex);
+                    CbSendMessageCalculator calculator = calculators[i];
+                    if (calculator.getFences().isEmpty()) {
+                        broadcastGeofenceMessage(cbMessages.get(i), cbMessageUris.get(i),
+                                slotIndex, calculator);
                     } else {
-                        performGeoFencing(cbMessages.get(i), cbMessageUris.get(i), broadcastArea,
-                                location, slotIndex, accuracy);
+                        performGeoFencing(cbMessages.get(i), cbMessageUris.get(i),
+                                calculator, location, slotIndex, accuracy);
                     }
+                }
+
+                boolean containsAnyAmbiguousMessages = Arrays.stream(calculators)
+                        .anyMatch(c -> isMessageInAmbiguousState(c));
+                if (!containsAnyAmbiguousMessages) {
+                    cancelLocationRequest();
+                }
+            }
+
+            @Override
+            public void onLocationUnavailable() {
+                for (int i = 0; i < cbMessages.size(); i++) {
+                    GsmCellBroadcastHandler.this.onLocationUnavailable(calculators[i],
+                            cbMessages.get(i), cbMessageUris.get(i), slotIndex);
                 }
             }
         }, maxWaitingTimeSec);
@@ -568,25 +598,31 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                 case ACTION_AREA_UPDATE_ENABLED:
                     boolean enabled = intent.getBooleanExtra(EXTRA_ENABLE, false);
                     log("Area update info enabled: " + enabled);
+                    String[] pkgs = mContext.getResources().getStringArray(
+                            R.array.config_area_info_receiver_packages);
+                    // set mAreaInfo to null before sending the broadcast to listeners to avoid
+                    // possible race condition.
                     if (!enabled) {
-                        String[] pkgs = mContext.getResources().getStringArray(
-                                R.array.config_area_info_receiver_packages);
-                        // notify receivers. the setting is singleton for msim devices, if areaInfo
-                        // toggle was off, it will applies for all slots/subscriptions.
-                        for(int i = 0; i < mAreaInfos.size(); i++) {
+                        for (int i = 0; i < mAreaInfos.size(); i++) {
                             int slotIndex = mAreaInfos.keyAt(i);
                             log("Area update info disabled, clear areaInfo from: "
                                     + mAreaInfos.get(slotIndex));
-                            for (String pkg : pkgs) {
-                                Intent areaInfoIntent = new Intent(
-                                        CellBroadcastIntents.ACTION_AREA_INFO_UPDATED);
-                                intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, slotIndex);
-                                intent.setPackage(pkg);
-                                mContext.sendBroadcastAsUser(areaInfoIntent, UserHandle.ALL,
-                                        android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-                            }
+                            mAreaInfos.put(slotIndex, null);
                         }
-                        mAreaInfos.clear();
+                    }
+                    // notify receivers. the setting is singleton for msim devices, if areaInfo
+                    // toggle was off/on, it will applies for all slots/subscriptions.
+                    for(int i = 0; i < mAreaInfos.size(); i++) {
+                        int slotIndex = mAreaInfos.keyAt(i);
+                        for (String pkg : pkgs) {
+                            Intent areaInfoIntent = new Intent(
+                                    CellBroadcastIntents.ACTION_AREA_INFO_UPDATED);
+                            intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, slotIndex);
+                            intent.putExtra(EXTRA_ENABLE, enabled);
+                            intent.setPackage(pkg);
+                            mContext.sendBroadcastAsUser(areaInfoIntent, UserHandle.ALL,
+                                    android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+                        }
                     }
                     break;
                 default:
