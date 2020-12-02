@@ -1013,6 +1013,14 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
             if (!mLocationUpdateInProgress) {
                 try {
+                    // If the user does not turn on location, immediately report location
+                    // unavailable.
+                    if (!mLocationManager.isLocationEnabled()) {
+                        Log.d(mDebugTag, "Location is turned off.");
+                        callback.onLocationUnavailable();
+                        return;
+                    }
+
                     /* We will continue to send updates until the location timeout is reached. The
                     location timeout case is handled through onLocationUnavailable. */
                     LocationRequest request = LocationRequest.create()
