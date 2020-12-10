@@ -604,21 +604,17 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                     // set mAreaInfo to null before sending the broadcast to listeners to avoid
                     // possible race condition.
                     if (!enabled) {
-                        for (int i = 0; i < mAreaInfos.size(); i++) {
-                            int slotIndex = mAreaInfos.keyAt(i);
-                            log("Area update info disabled, clear areaInfo from: "
-                                    + mAreaInfos.get(slotIndex));
-                            mAreaInfos.put(slotIndex, null);
-                        }
+                        mAreaInfos.clear();
+                        log("Area update info disabled, clear areaInfo");
                     }
                     // notify receivers. the setting is singleton for msim devices, if areaInfo
                     // toggle was off/on, it will applies for all slots/subscriptions.
-                    for(int i = 0; i < mAreaInfos.size(); i++) {
-                        int slotIndex = mAreaInfos.keyAt(i);
+                    TelephonyManager tm = mContext.getSystemService(TelephonyManager.class);
+                    for(int i = 0; i < tm.getActiveModemCount(); i++) {
                         for (String pkg : pkgs) {
                             Intent areaInfoIntent = new Intent(
                                     CellBroadcastIntents.ACTION_AREA_INFO_UPDATED);
-                            intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, slotIndex);
+                            intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, i);
                             intent.putExtra(EXTRA_ENABLE, enabled);
                             intent.setPackage(pkg);
                             mContext.sendBroadcastAsUser(areaInfoIntent, UserHandle.ALL,
