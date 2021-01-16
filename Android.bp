@@ -43,7 +43,9 @@ android_app {
 genrule {
   name: "statslog-cellbroadcast-java-gen",
   tools: ["stats-log-api-gen"],
-  cmd: "$(location stats-log-api-gen) --java $(out) --module cellbroadcast --javaPackage com.android.cellbroadcastservice --javaClass CellBroadcastStatsLog",
+  cmd: "$(location stats-log-api-gen) --java $(out) --module cellbroadcast" +
+       " --javaPackage com.android.cellbroadcastservice --javaClass CellBroadcastStatsLog" +
+       " --minApiLevel 30",
   out: ["com/android/cellbroadcastservice/CellBroadcastStatsLog.java"],
 }
 
