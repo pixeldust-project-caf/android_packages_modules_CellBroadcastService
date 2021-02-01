@@ -36,6 +36,11 @@
     <!-- Whether to compare message service category when deduping messages -->
     <bool name="duplicate_compare_service_category">true</bool>
 
+    <!-- Whether to enable cross SIM message duplicate detection or not. If enabled, messages
+         with the same content from different SIM will be treated as duplicates. If disbled,
+         multiple identical messages will be displayed on multi-SIM devices -->
+    <bool name="cross_sim_duplicate_detection">true</bool>
+
     <!-- Whether to reset alert message duplicate detection and geo-fencing check after
     reboot or toggling airplane mode -->
     <bool name="reset_on_power_cycle_or_airplane_mode">false</bool>

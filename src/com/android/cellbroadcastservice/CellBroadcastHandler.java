@@ -538,18 +538,23 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
         boolean compareMessageBody = res.getBoolean(R.bool.duplicate_compare_body);
         boolean compareServiceCategory = res.getBoolean(R.bool.duplicate_compare_service_category);
+        boolean crossSimDuplicateDetection = res.getBoolean(R.bool.cross_sim_duplicate_detection);
 
         log("Found " + cbMessages.size() + " messages since "
                 + DateFormat.getDateTimeInstance().format(dupCheckTime));
+        log("compareMessageBody=" + compareMessageBody + ", compareServiceCategory="
+                + compareServiceCategory + ", crossSimDuplicateDetection="
+                + crossSimDuplicateDetection);
         for (SmsCbMessage messageToCheck : cbMessages) {
             // If messages are from different slots, then we only compare the message body.
             if (VDBG) log("Checking the message " + messageToCheck);
-            if (message.getSlotIndex() != messageToCheck.getSlotIndex()) {
+            if (crossSimDuplicateDetection
+                    && message.getSlotIndex() != messageToCheck.getSlotIndex()) {
                 if (TextUtils.equals(message.getMessageBody(), messageToCheck.getMessageBody())) {
                     log("Duplicate message detected from different slot. " + message);
                     return true;
                 }
-                if (VDBG) log("Not from a same slot.");
+                if (VDBG) log("Not from the same slot.");
             } else {
                 // Check serial number if message is from the same carrier.
                 if (message.getSerialNumber() != messageToCheck.getSerialNumber()) {
@@ -1006,6 +1011,14 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
 
             if (!mLocationUpdateInProgress) {
                 try {
+                    // If the user does not turn on location, immediately report location
+                    // unavailable.
+                    if (!mLocationManager.isLocationEnabled()) {
+                        Log.d(mDebugTag, "Location is turned off.");
+                        callback.onLocationUnavailable();
+                        return;
+                    }
+
                     /* We will continue to send updates until the location timeout is reached. The
                     location timeout case is handled through onLocationUnavailable. */
                     LocationRequest request = LocationRequest.create()
