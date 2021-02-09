@@ -614,9 +614,9 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                         for (String pkg : pkgs) {
                             Intent areaInfoIntent = new Intent(
                                     CellBroadcastIntents.ACTION_AREA_INFO_UPDATED);
-                            intent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, i);
-                            intent.putExtra(EXTRA_ENABLE, enabled);
-                            intent.setPackage(pkg);
+                            areaInfoIntent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, i);
+                            areaInfoIntent.putExtra(EXTRA_ENABLE, enabled);
+                            areaInfoIntent.setPackage(pkg);
                             mContext.sendBroadcastAsUser(areaInfoIntent, UserHandle.ALL,
                                     android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
                         }
