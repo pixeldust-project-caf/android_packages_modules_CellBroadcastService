@@ -173,18 +173,8 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         mSendMessageFactory = new CellBroadcastHandlerTest.CbSendMessageCalculatorFactoryFacade();
 
         mHandlerHelper = mock(CellBroadcastHandler.HandlerHelper.class);
-        mGsmCellBroadcastHandler = new GsmCellBroadcastHandler(mMockedContext,
-                mTestableLooper.getLooper(), mSendMessageFactory, mHandlerHelper);
 
-        doAnswer(invocation -> {
-            Runnable r = invocation.getArgument(0);
-            mGsmCellBroadcastHandler.getHandler().post(r);
-            return null;
-        }).when(mHandlerHelper).post(any());
-        doReturn(mGsmCellBroadcastHandler.getHandler()).when(mHandlerHelper).getHandler();
-
-        mGsmCellBroadcastHandler.start();
-
+        // need to init mocked resources before creating GsmCellBroadcastHandler
         ((MockContentResolver) mMockedContext.getContentResolver()).addProvider(
                 Telephony.CellBroadcasts.CONTENT_URI.getAuthority(),
                 new CellBroadcastContentProvider());
@@ -192,8 +182,6 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
                 Settings.AUTHORITY, new SettingsProvider());
         doReturn(true).when(mMockedResourcesCache).containsKey(anyInt());
         doReturn(mMockedResources).when(mMockedResourcesCache).get(anyInt());
-        replaceInstance(CellBroadcastHandler.class, "mResourcesCache",
-                mGsmCellBroadcastHandler, mMockedResourcesCache);
         putResources(com.android.cellbroadcastservice.R.integer.message_expiration_time, 86400000);
         putResources(com.android.cellbroadcastservice.R.array
                 .additional_cell_broadcast_receiver_packages, new String[]{});
@@ -201,6 +189,23 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
         putResources(
                 com.android.cellbroadcastservice.R.array.config_area_info_receiver_packages,
                 new String[]{"fake.inforeceiver.pkg"});
+
+        mGsmCellBroadcastHandler = new GsmCellBroadcastHandler(mMockedContext,
+                mTestableLooper.getLooper(), mSendMessageFactory, mHandlerHelper, mMockedResources,
+                FAKE_SUBID);
+
+        // after mGsmCellBroadcastHandler's constructor has run, now we can replace the
+        // mResourcesCache instance
+        replaceInstance(CellBroadcastHandler.class, "mResourcesCache",
+                mGsmCellBroadcastHandler, mMockedResourcesCache);
+
+        doAnswer(invocation -> {
+            Runnable r = invocation.getArgument(0);
+            mGsmCellBroadcastHandler.getHandler().post(r);
+            return null;
+        }).when(mHandlerHelper).post(any());
+        doReturn(mGsmCellBroadcastHandler.getHandler()).when(mHandlerHelper).getHandler();
+        mGsmCellBroadcastHandler.start();
     }
 
     @After
