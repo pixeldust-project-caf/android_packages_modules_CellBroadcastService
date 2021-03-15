@@ -16,7 +16,7 @@ android_test {
     ],
     srcs: ["src/**/*.java", ":cellbroadcast-shared-srcs"],
     platform_apis: true,
-    test_suites: ["device-tests", "mts"],
+    test_suites: ["device-tests", "mts-cellbroadcast"],
     certificate: "platform",
     instrumentation_for: "CellBroadcastServiceModule",
 }
