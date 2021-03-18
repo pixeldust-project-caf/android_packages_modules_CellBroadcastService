@@ -67,4 +67,8 @@
       Default is according to FCC spec of .1 miles which is ~160 meters.
        -->
     <integer name="geo_fence_threshold">160</integer>
+
+    <!-- Whether or not to reset Area Info Updates available with
+      DefaultCellBroadcastService#getCellBroadcastAreaInfo(slot) when device goes OOS on a slot-->
+    <bool name="reset_area_info_on_oos">false</bool>
 </resources>
