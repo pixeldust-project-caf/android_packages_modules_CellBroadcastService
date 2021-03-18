@@ -135,7 +135,7 @@ public class CellBroadcastHandler extends WakeLockStateMachine {
     protected long mLastAirplaneModeTime = 0;
 
     /** Resource cache */
-    private final Map<Integer, Resources> mResourcesCache = new HashMap<>();
+    protected final Map<Integer, Resources> mResourcesCache = new HashMap<>();
 
     /** Whether performing duplicate detection or not. Note this is for debugging purposes only. */
     private boolean mEnableDuplicateDetection = true;
