@@ -37,7 +37,7 @@
 
     <protected-broadcast android:name="android.telephony.action.AREA_INFO_UPDATED" />
 
-    <uses-sdk android:minSdkVersion="29"/>
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="30" />
 
     <application android:label="Cell Broadcast Service"
         android:defaultToDeviceProtectedStorage="true"
