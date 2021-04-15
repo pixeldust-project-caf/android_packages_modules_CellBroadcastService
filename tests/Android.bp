@@ -23,4 +23,5 @@ android_test {
     test_suites: ["device-tests", "mts-cellbroadcast"],
     certificate: "platform",
     instrumentation_for: "CellBroadcastServiceModule",
+    min_sdk_version: "30",
 }
