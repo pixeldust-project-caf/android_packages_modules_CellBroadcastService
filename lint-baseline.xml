@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="5" by="lint 4.1.0" client="cli" variant="all" version="4.1.0">
+
+    <issue
+        id="NewApi"
+        message="Call requires API level R (current min is 29): `android.content.Context#sendOrderedBroadcast`"
+        errorLine1="        mContext.sendOrderedBroadcast(intent, Manifest.permission.RECEIVE_SMS,"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/CdmaServiceCategoryProgramHandler.java"
+            line="155"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level R (current min is 29): `android.telephony.TelephonyManager#getActiveModemCount`"
+        errorLine1="        for (int slotId = 0; slotId &lt; tm.getActiveModemCount(); slotId++) {"
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="164"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 31 (current min is 29): `android.util.SparseArray#set`"
+        errorLine1="                    mServiceStateListener.set(slotId, new ServiceStateListener(subId, slotId));"
+        errorLine2="                          ~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="169"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 31 (current min is 29): `android.telephony.TelephonyManager#registerTelephonyCallback`"
+        errorLine1="                    tm.createForSubscriptionId(subId).registerTelephonyCallback("
+        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="170"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Class requires API level 31 (current min is 29): `android.telephony.TelephonyCallback.ServiceStateListener`"
+        errorLine1="    private class ServiceStateListener extends TelephonyCallback implements"
+        errorLine2="                                                                        ^">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="177"
+            column="73"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Class requires API level 31 (current min is 29): `android.telephony.TelephonyCallback`"
+        errorLine1="    private class ServiceStateListener extends TelephonyCallback implements"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="177"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level R (current min is 29): `android.util.SparseArray#contains`"
+        errorLine1="                    if (mAreaInfos.contains(mSlotId)) {"
+        errorLine2="                                   ~~~~~~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="192"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level R (current min is 29): `android.telephony.NetworkRegistrationInfo#getCellIdentity`"
+        errorLine1="            cellIdentityList.add(nri.getCellIdentity());"
+        errorLine2="                                     ~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="545"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level R (current min is 29): `android.telephony.NetworkRegistrationInfo#getCellIdentity`"
+        errorLine1="            cellIdentityList.add(nri.getCellIdentity());"
+        errorLine2="                                     ~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="552"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Method reference requires API level R (current min is 29): `CellInfo::getCellIdentity`"
+        errorLine1="                    infos.stream().map(CellInfo::getCellIdentity).collect(Collectors.toList()));"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="560"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level R (current min is 29): `android.telephony.TelephonyManager#getActiveModemCount`"
+        errorLine1="                    for(int i = 0; i &lt; tm.getActiveModemCount(); i++) {"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="packages/modules/CellBroadcastService/src/com/android/cellbroadcastservice/GsmCellBroadcastHandler.java"
+            line="700"
+            column="43"/>
+    </issue>
+
+</issues>
