@@ -107,7 +107,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
     /**
      * Used to store ServiceStateListeners for each active slot
      */
-    private final SparseArray<PhoneStateListener> mServiceStateListener = new SparseArray<>();
+    private final SparseArray<ServiceStateListener> mServiceStateListener = new SparseArray<>();
 
     /** This map holds incomplete concatenated messages waiting for assembly. */
     private final HashMap<SmsCbConcatInfo, byte[][]> mSmsCbPageMap =
@@ -154,6 +154,17 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
                     new IntentFilter(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED), null,
                     null);
         }
+    }
+
+    @Override
+    public void cleanup() {
+        log("cleanup");
+        TelephonyManager tm = mContext.getSystemService(TelephonyManager.class);
+        int size = mServiceStateListener.size();
+        for (int i = 0; i < size; i++) {
+            tm.listen(mServiceStateListener.valueAt(i), PhoneStateListener.LISTEN_NONE);
+        }
+        super.cleanup();
     }
 
     private void registerServiceStateListeners() {
