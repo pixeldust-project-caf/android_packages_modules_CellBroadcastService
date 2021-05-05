@@ -237,6 +237,13 @@ public class GsmCellBroadcastHandlerTest extends CellBroadcastServiceTestBase {
     }
 
     @Test
+    public void testCleanup() throws Exception {
+        mGsmCellBroadcastHandler.cleanup();
+        // mGsmReceiver and mReceiver should be unregistered
+        verify(mMockedContext, times(2)).unregisterReceiver(any());
+    }
+
+    @Test
     @SmallTest
     public void testAirplaneModeReset() {
         putResources(com.android.cellbroadcastservice.R.bool.reset_on_power_cycle_or_airplane_mode,
