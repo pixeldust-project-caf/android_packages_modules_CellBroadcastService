@@ -119,12 +119,12 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             CellBroadcastHandler.HandlerHelper handlerHelper) {
         super("GsmCellBroadcastHandler", context, looper, cbSendMessageCalculatorFactory,
                 handlerHelper);
-        mContext.registerReceiver(mReceiver, new IntentFilter(ACTION_AREA_UPDATE_ENABLED),
+        mContext.registerReceiver(mGsmReceiver, new IntentFilter(ACTION_AREA_UPDATE_ENABLED),
                 CBR_MODULE_PERMISSION, null);
         // Some OEMs want us to reset the area info updates when going out of service
         // (Okay to use res for slot 0 here because this should not be carrier specific)
         if (getResourcesForSlot(0).getBoolean(R.bool.reset_area_info_on_oos)) {
-            mContext.registerReceiver(mReceiver,
+            mContext.registerReceiver(mGsmReceiver,
                     new IntentFilter(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED), null,
                     null);
         }
@@ -141,7 +141,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
             CellBroadcastHandler.HandlerHelper handlerHelper, Resources resources, int subId) {
         super("GsmCellBroadcastHandler", context, looper, cbSendMessageCalculatorFactory,
                 handlerHelper);
-        mContext.registerReceiver(mReceiver, new IntentFilter(ACTION_AREA_UPDATE_ENABLED),
+        mContext.registerReceiver(mGsmReceiver, new IntentFilter(ACTION_AREA_UPDATE_ENABLED),
                 CBR_MODULE_PERMISSION, null);
 
         // set the resources cache here for unit tests
@@ -150,7 +150,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         // Some OEMs want us to reset the area info updates when going out of service
         // (Okay to use res for slot 0 here because this should not be carrier specific)
         if (getResourcesForSlot(0).getBoolean(R.bool.reset_area_info_on_oos)) {
-            mContext.registerReceiver(mReceiver,
+            mContext.registerReceiver(mGsmReceiver,
                     new IntentFilter(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED), null,
                     null);
         }
@@ -164,6 +164,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         for (int i = 0; i < size; i++) {
             tm.listen(mServiceStateListener.valueAt(i), PhoneStateListener.LISTEN_NONE);
         }
+        mContext.unregisterReceiver(mGsmReceiver);
         super.cleanup();
     }
 
@@ -690,7 +691,7 @@ public class GsmCellBroadcastHandler extends CellBroadcastHandler {
         }
     }
 
-    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+    private BroadcastReceiver mGsmReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             switch (intent.getAction()) {
